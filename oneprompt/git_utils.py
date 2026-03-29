@@ -75,25 +75,32 @@ class GitRepo:
         Retries up to 3 times to handle git lock contention when multiple
         worktrees share the same .git directory.
         """
-        written = 0
         for rel_path, content in files.items():
             full_path = self.repo_path / rel_path
             full_path.parent.mkdir(parents=True, exist_ok=True)
             full_path.write_text(content, encoding="utf-8")
-            written += 1
+            logger.info("Wrote %s (%d bytes) to %s", rel_path, len(content), full_path)
 
-        self._run("add", "--all")
+        add_r = self._run("add", "--all")
+        if add_r.returncode != 0:
+            logger.warning("git add --all failed (cwd=%s): %s", self.repo_path, add_r.stderr.strip())
+
+        status_r = self._run("status", "--short")
+        logger.info("git status (cwd=%s): %s", self.repo_path, status_r.stdout.strip()[:300])
 
         for attempt in range(3):
             r = self._run("commit", "-m", message)
             if r.returncode == 0:
+                log_r = self._run("log", "--oneline", "-3")
+                logger.info("Commit OK (cwd=%s): %s", self.repo_path, log_r.stdout.strip())
                 return True
             if "lock" in r.stderr.lower() or "index.lock" in r.stderr.lower():
                 logger.info("Git lock contention (attempt %d/3), retrying...", attempt + 1)
                 time.sleep(0.5 * (attempt + 1))
                 continue
-            logger.warning("commit_files: wrote %d files, commit exit=%d stderr=%r",
-                           written, r.returncode, r.stderr.strip()[:200])
+            logger.warning("commit_files: commit exit=%d stderr=%r stdout=%r (cwd=%s)",
+                           r.returncode, r.stderr.strip()[:200], r.stdout.strip()[:200],
+                           self.repo_path)
             return False
         return False
 
