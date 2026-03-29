@@ -1,0 +1,55 @@
+/* Foundational Styles */
+
+/* Body styling - reset default margins and padding, set base font properties */
+body {
+  margin: 0;
+  padding: 20px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-size: 16px;
+  line-height: 1.6;
+  color: #333333;
+  background-color: #ffffff;
+}
+
+/* Heading styling - h1 with prominent font size and color */
+h1 {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin-top: 0;
+  margin-bottom: 0.5rem;
+}
+
+/* Secondary heading styling - h2 with consistent hierarchy */
+h2 {
+  font-size: 1.75rem;
+  font-weight: 600;
+  color: #2c3e50;
+  margin-top: 1.5rem;
+  margin-bottom: 0.75rem;
+}
+
+/* Paragraph styling - improved readability */
+p {
+  margin: 1rem 0;
+  text-align: left;
+}
+
+/* Link styling - clear visual distinction */
+a {
+  color: #0066cc;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+a:hover {
+  color: #0052a3;
+  text-decoration: underline;
+}
+
+/* Container for main content - optional but useful */
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
