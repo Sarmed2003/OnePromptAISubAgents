@@ -140,9 +140,13 @@ class GitRepo:
 
         url = self.config.authenticated_url
         push_r = self._run("push", url, f"HEAD:refs/heads/{self.config.main_branch}")
+        if push_r.returncode != 0:
+            logger.warning("Push to remote failed (merge is local-only): %s",
+                           push_r.stderr.strip()[:200])
         return {
-            "success": push_r.returncode == 0,
+            "success": True,
             "conflict": False,
+            "pushed": push_r.returncode == 0,
             "error": push_r.stderr.strip() if push_r.returncode != 0 else "",
         }
 
