@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import os
 import subprocess
+import time
 from pathlib import Path
 from typing import Any
 
@@ -25,10 +26,11 @@ class GitRepo:
             "GIT_AUTHOR_EMAIL": config.commit_email,
             "GIT_COMMITTER_NAME": config.commit_name,
             "GIT_COMMITTER_EMAIL": config.commit_email,
+            "GIT_TERMINAL_PROMPT": "0",
         }
 
     def _run(self, *args: str, cwd: Path | None = None) -> subprocess.CompletedProcess:
-        cmd = ["git"] + list(args)
+        cmd = ["git", "-c", "credential.helper="] + list(args)
         result = subprocess.run(
             cmd,
             cwd=cwd or self.repo_path,
@@ -44,6 +46,7 @@ class GitRepo:
     def clone_or_pull(self) -> bool:
         """Clone the repo if it doesn't exist, or pull latest."""
         if (self.repo_path / ".git").exists():
+            self._run("remote", "set-url", "origin", self.config.authenticated_url)
             result = self._run("pull", "--ff-only", "origin", self.config.main_branch)
             return result.returncode == 0
 
@@ -67,31 +70,64 @@ class GitRepo:
         return r.returncode == 0
 
     def commit_files(self, files: dict[str, str], message: str) -> bool:
-        """Write files to disk and commit them."""
+        """Write files to disk and commit them.
+
+        Retries up to 3 times to handle git lock contention when multiple
+        worktrees share the same .git directory.
+        """
+        written = 0
         for rel_path, content in files.items():
             full_path = self.repo_path / rel_path
             full_path.parent.mkdir(parents=True, exist_ok=True)
             full_path.write_text(content, encoding="utf-8")
-            self._run("add", rel_path)
+            written += 1
 
-        r = self._run("commit", "-m", message)
-        return r.returncode == 0
+        self._run("add", "--all")
+
+        for attempt in range(3):
+            r = self._run("commit", "-m", message)
+            if r.returncode == 0:
+                return True
+            if "lock" in r.stderr.lower() or "index.lock" in r.stderr.lower():
+                logger.info("Git lock contention (attempt %d/3), retrying...", attempt + 1)
+                time.sleep(0.5 * (attempt + 1))
+                continue
+            logger.warning("commit_files: wrote %d files, commit exit=%d stderr=%r",
+                           written, r.returncode, r.stderr.strip()[:200])
+            return False
+        return False
 
     def push_branch(self, branch_name: str) -> bool:
-        r = self._run("push", "-u", "origin", branch_name, "--force")
+        url = self.config.authenticated_url
+        r = self._run("push", url, f"HEAD:refs/heads/{branch_name}", "--force")
         return r.returncode == 0
 
     def merge_branch(self, branch_name: str, strategy: str = "merge-commit") -> dict[str, Any]:
         """Attempt to merge a worker branch into main."""
         self.checkout_main()
+        self._run("remote", "set-url", "origin", self.config.authenticated_url)
         self._run("fetch", "origin")
 
+        remote_ref = f"origin/{branch_name}"
+        check = self._run("rev-parse", "--verify", remote_ref)
+        if check.returncode != 0:
+            local_check = self._run("rev-parse", "--verify", branch_name)
+            if local_check.returncode == 0:
+                remote_ref = branch_name
+                logger.info("Using local branch %s (remote not found)", branch_name)
+            else:
+                return {
+                    "success": False,
+                    "conflict": False,
+                    "error": f"Branch {branch_name} not found locally or on remote",
+                }
+
         if strategy == "fast-forward":
-            r = self._run("merge", "--ff-only", f"origin/{branch_name}")
+            r = self._run("merge", "--ff-only", remote_ref)
         elif strategy == "rebase":
-            r = self._run("rebase", f"origin/{branch_name}")
+            r = self._run("rebase", remote_ref)
         else:
-            r = self._run("merge", "--no-ff", f"origin/{branch_name}",
+            r = self._run("merge", "--no-ff", remote_ref,
                           "-m", f"Merge {branch_name} into {self.config.main_branch}")
 
         if r.returncode != 0:
@@ -102,7 +138,8 @@ class GitRepo:
                 "error": r.stderr.strip(),
             }
 
-        push_r = self._run("push", "origin", self.config.main_branch)
+        url = self.config.authenticated_url
+        push_r = self._run("push", url, f"HEAD:refs/heads/{self.config.main_branch}")
         return {
             "success": push_r.returncode == 0,
             "conflict": False,
@@ -143,11 +180,6 @@ class GitRepo:
 
     def run_build(self) -> tuple[int, str]:
         """Run the project's build command. Returns (exit_code, output)."""
-        build_cmds = [
-            ["npm", "run", "build"],
-            ["python", "-m", "py_compile"],
-            ["make", "build"],
-        ]
         pkg_json = self.repo_path / "package.json"
         if pkg_json.exists():
             r = subprocess.run(
@@ -156,6 +188,21 @@ class GitRepo:
                 capture_output=True, text=True, timeout=120,
             )
             return r.returncode, r.stdout + r.stderr
+
+        py_files = list(self.repo_path.glob("**/*.py"))
+        if py_files:
+            errors = []
+            for pf in py_files[:20]:
+                r = subprocess.run(
+                    ["python", "-m", "py_compile", str(pf)],
+                    cwd=self.repo_path,
+                    capture_output=True, text=True, timeout=30,
+                )
+                if r.returncode != 0:
+                    errors.append(r.stderr)
+            if errors:
+                return 1, "\n".join(errors)
+            return 0, f"Python syntax OK ({len(py_files)} files checked)"
 
         return 0, "No build system detected — skipping."
 

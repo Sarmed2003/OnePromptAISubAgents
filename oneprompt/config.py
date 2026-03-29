@@ -13,18 +13,43 @@ load_dotenv()
 
 @dataclass(frozen=True)
 class LLMConfig:
+    provider: str = "gemini"
     api_key: str = ""
     model: str = "gemini-2.0-flash"
     temperature: float = 0.7
     max_tokens: int = 8192
+    ollama_url: str = "http://localhost:11434"
+    ollama_model: str = "qwen2.5-coder:7b"
+    fallback_to_ollama: bool = False
+    bedrock_model_id: str = ""
+    bedrock_region: str = ""
+    bedrock_max_output_tokens: int = 8192
+    aws_access_key_id: str = ""
+    aws_secret_access_key: str = ""
+    aws_session_token: str = ""
 
     @classmethod
     def from_env(cls) -> LLMConfig:
         return cls(
+            provider=os.getenv("LLM_PROVIDER", "gemini"),
             api_key=os.getenv("GEMINI_API_KEY", ""),
             model=os.getenv("GEMINI_MODEL", "gemini-2.0-flash"),
             temperature=float(os.getenv("LLM_TEMPERATURE", "0.7")),
             max_tokens=int(os.getenv("LLM_MAX_TOKENS", "8192")),
+            ollama_url=os.getenv("OLLAMA_URL", "http://localhost:11434"),
+            ollama_model=os.getenv("OLLAMA_MODEL", "qwen2.5-coder:7b"),
+            fallback_to_ollama=os.getenv("FALLBACK_TO_OLLAMA", "false").lower() == "true",
+            bedrock_model_id=os.getenv(
+                "BEDROCK_MODEL_ID",
+                "us.anthropic.claude-haiku-4-5-20251001-v1:0",
+            ),
+            bedrock_region=os.getenv("BEDROCK_REGION", os.getenv("AWS_REGION", "us-east-1")),
+            bedrock_max_output_tokens=int(
+                os.getenv("BEDROCK_MAX_OUTPUT_TOKENS", "8192")
+            ),
+            aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID", ""),
+            aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY", ""),
+            aws_session_token=os.getenv("AWS_SESSION_TOKEN", ""),
         )
 
 
@@ -147,8 +172,8 @@ class AppConfig:
 
     def validate(self) -> list[str]:
         errors: list[str] = []
-        if not self.llm.api_key:
-            errors.append("GEMINI_API_KEY is required")
+        if self.llm.provider == "gemini" and not self.llm.api_key:
+            errors.append("GEMINI_API_KEY is required when LLM_PROVIDER=gemini")
         if not self.git.repo_url:
             errors.append("GIT_REPO_URL is required")
         if not self.git.token:

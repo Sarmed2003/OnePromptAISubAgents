@@ -83,6 +83,7 @@ class Handoff:
     files_changed: list[str] = field(default_factory=list)
     concerns: list[str] = field(default_factory=list)
     suggestions: list[str] = field(default_factory=list)
+    committed: bool = False
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -91,6 +92,7 @@ class Handoff:
             "files_changed": self.files_changed,
             "concerns": self.concerns,
             "suggestions": self.suggestions,
+            "committed": self.committed,
         }
 
     @classmethod

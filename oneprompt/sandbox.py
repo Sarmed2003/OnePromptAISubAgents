@@ -7,14 +7,10 @@ branches don't collide.
 
 from __future__ import annotations
 
-import asyncio
 import logging
-import os
 import shutil
 import subprocess
-import tempfile
 from pathlib import Path
-from typing import Any
 
 from .config import GitConfig
 from .git_utils import GitRepo
@@ -38,18 +34,32 @@ class LocalSandbox:
         self._sandbox_root.mkdir(parents=True, exist_ok=True)
 
     def create_worktree(self, branch_name: str) -> GitRepo:
-        """Create an isolated worktree for a worker branch."""
+        """Create an isolated worktree for a worker branch.
+
+        The worktree checks out a new branch from HEAD so the worker
+        gets an independent directory with the full repo contents.
+        """
         safe_name = branch_name.replace("/", "-")
         worktree_path = self._sandbox_root / safe_name
 
         if worktree_path.exists():
             self.remove_worktree(branch_name)
 
+        # Delete the branch if it exists from a prior run
         subprocess.run(
+            ["git", "branch", "-D", branch_name],
+            cwd=self.main_repo,
+            capture_output=True, text=True,
+        )
+
+        result = subprocess.run(
             ["git", "worktree", "add", str(worktree_path), "-b", branch_name],
             cwd=self.main_repo,
             capture_output=True, text=True,
         )
+        if result.returncode != 0:
+            logger.error("Failed to create worktree %s: %s", branch_name, result.stderr)
+            raise RuntimeError(f"git worktree add failed: {result.stderr.strip()}")
 
         self._worktrees[branch_name] = worktree_path
         logger.info("Created worktree: %s → %s", branch_name, worktree_path)

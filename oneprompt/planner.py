@@ -26,7 +26,7 @@ def _load_prompt(name: str) -> str:
 def _parse_tasks(raw_tasks: list[dict[str, Any]], parent_id: str | None = None) -> list[Task]:
     tasks = []
     for t in raw_tasks:
-        branch = t.get("branch", f"worker/{t['id']}")
+        branch = (t.get("branch") or "").strip() or f"worker/{t['id']}"
         task = Task(
             id=t["id"],
             description=t["description"],
@@ -66,8 +66,12 @@ class Planner:
             self.system_prompt, spec, file_tree, context
         )
 
-        self.scratchpad = result.get("scratchpad", "")
-        raw_tasks = result.get("tasks", [])
+        if isinstance(result, list):
+            raw_tasks = result
+            self.scratchpad = ""
+        else:
+            self.scratchpad = result.get("scratchpad", "")
+            raw_tasks = result.get("tasks", [])
 
         if not raw_tasks:
             logger.info("Planner returned no tasks (iteration %d)", self.iteration)
@@ -116,7 +120,10 @@ Decompose this task or return empty tasks if it's atomic."""
 
         result = await self.llm.generate_json(self.system_prompt, user_msg)
 
-        raw_tasks = result.get("tasks", [])
+        if isinstance(result, list):
+            raw_tasks = result
+        else:
+            raw_tasks = result.get("tasks", [])
         if not raw_tasks:
             logger.info("Task %s is atomic — no decomposition", parent_task.id)
             return []

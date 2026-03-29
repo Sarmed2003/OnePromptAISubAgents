@@ -21,12 +21,9 @@ from .sandbox import LocalSandbox
 from .task_queue import TaskQueue
 from .types import (
     AgentState,
-    AgentRole,
-    Handoff,
     NdjsonEvent,
     RunMetrics,
     Task,
-    TaskStatus,
 )
 from .worker import Worker
 
@@ -53,6 +50,9 @@ class Orchestrator:
             backend=config.database.backend,
             region=config.aws.region,
             table_prefix=config.aws.dynamodb_table_prefix,
+            access_key_id=config.aws.access_key_id,
+            secret_access_key=config.aws.secret_access_key,
+            session_token=config.aws.session_token,
             uri=config.database.mongodb_uri,
             db_name=config.database.mongodb_db,
         )
@@ -125,15 +125,37 @@ class Orchestrator:
         async def run_worker(task: Task) -> None:
             async with worker_sem:
                 worker_id = f"w-{task.id}"
-                worker = Worker(worker_id, self.llm, self.git, self._worker_prompt)
+                branch_name = task.branch or f"worker/{task.id}"
+                wt_git = None
+                try:
+                    wt_git = self.sandbox.create_worktree(branch_name)
+                except Exception as wt_err:
+                    logger.warning(
+                        "[%s] Worktree creation failed, falling back to shared repo: %s",
+                        worker_id, wt_err,
+                    )
+
+                sandboxed = wt_git is not None
+                git_for_worker = wt_git if sandboxed else self.git
+                worker = Worker(
+                    worker_id, self.llm, git_for_worker, self._worker_prompt,
+                    sandboxed=sandboxed,
+                )
                 self._agents.append(worker.state)
                 self.metrics.agents_active += 1
 
-                self._emit("worker_start", {"worker": worker_id, "task": task.id})
+                self._emit("worker_start", {
+                    "worker": worker_id,
+                    "task": task.id,
+                    "sandboxed": sandboxed,
+                })
 
                 handoff = await worker.execute(task)
                 self.metrics.agents_active -= 1
                 self.metrics.total_tokens = self.llm.total_tokens
+
+                if sandboxed:
+                    self.sandbox.remove_worktree(branch_name)
 
                 if handoff.status in ("complete", "partial"):
                     self.task_queue.complete_task(task.id, handoff)
@@ -147,7 +169,9 @@ class Orchestrator:
                     "worker": worker_id,
                     "task": task.id,
                     "status": handoff.status,
-                    "summary": handoff.summary[:200],
+                    "summary": handoff.summary[:2000],
+                    "files_changed": handoff.files_changed,
+                    "committed": handoff.committed,
                 })
 
         # Dispatch workers in batches by priority
@@ -169,6 +193,7 @@ class Orchestrator:
                             "branch": mr.branch,
                             "success": mr.success,
                             "conflict": mr.conflict,
+                            "error": (mr.error or "")[:500],
                         })
 
                     if self.task_queue.is_all_done():
@@ -194,7 +219,16 @@ class Orchestrator:
 
         if worker_tasks:
             await asyncio.gather(*worker_tasks)
-            self.merge_queue.process_all()
+            for mr in self.merge_queue.process_all():
+                self.metrics.total_commits += 1 if mr.success else 0
+                self.metrics.merge_conflicts += 1 if mr.conflict else 0
+                self._emit("merge", {
+                    "task": mr.task_id,
+                    "branch": mr.branch,
+                    "success": mr.success,
+                    "conflict": mr.conflict,
+                    "error": (mr.error or "")[:500],
+                })
 
         # Phase 3: Reconciliation
         if self.config.orchestrator.finalization_enabled:
@@ -210,7 +244,16 @@ class Orchestrator:
                     asyncio.create_task(run_worker(ft)) for ft in fix_tasks
                 ]
                 await asyncio.gather(*fix_workers)
-                self.merge_queue.process_all()
+                for mr in self.merge_queue.process_all():
+                    self.metrics.total_commits += 1 if mr.success else 0
+                    self.metrics.merge_conflicts += 1 if mr.conflict else 0
+                    self._emit("merge", {
+                        "task": mr.task_id,
+                        "branch": mr.branch,
+                        "success": mr.success,
+                        "conflict": mr.conflict,
+                        "error": (mr.error or "")[:500],
+                    })
 
         # Cleanup
         self.sandbox.cleanup_all()

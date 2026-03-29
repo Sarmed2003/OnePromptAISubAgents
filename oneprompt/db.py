@@ -30,25 +30,46 @@ class DatabaseBackend(Protocol):
 class DynamoDBBackend:
     """AWS DynamoDB storage backend — serverless, no setup required."""
 
-    def __init__(self, region: str = "us-east-1", table_prefix: str = "onepromptai"):
+    def __init__(
+        self,
+        region: str = "us-east-1",
+        table_prefix: str = "onepromptai",
+        access_key_id: str = "",
+        secret_access_key: str = "",
+        session_token: str = "",
+    ):
         self.region = region
         self.table_prefix = table_prefix
+        self._access_key_id = access_key_id
+        self._secret_access_key = secret_access_key
+        self._session_token = session_token
         self._dynamodb = None
         self._connected = False
         self._tables: dict[str, Any] = {}
 
+    def _boto_kwargs(self) -> dict[str, str]:
+        kw: dict[str, str] = {"region_name": self.region}
+        if self._access_key_id:
+            kw["aws_access_key_id"] = self._access_key_id
+        if self._secret_access_key:
+            kw["aws_secret_access_key"] = self._secret_access_key
+        if self._session_token:
+            kw["aws_session_token"] = self._session_token
+        return kw
+
     def connect(self) -> bool:
         try:
             import boto3
-            self._dynamodb = boto3.resource("dynamodb", region_name=self.region)
-            client = boto3.client("dynamodb", region_name=self.region)
-            client.describe_endpoints()
+            bkw = self._boto_kwargs()
+            self._dynamodb = boto3.resource("dynamodb", **bkw)
+            client = boto3.client("dynamodb", **bkw)
+            client.list_tables(Limit=1)
             self._ensure_tables(client)
             self._connected = True
             logger.info("DynamoDB connected (region=%s, prefix=%s)", self.region, self.table_prefix)
             return True
         except Exception as e:
-            logger.warning("DynamoDB unavailable: %s", e)
+            logger.warning("DynamoDB unavailable: %s — falling back to in-memory", e)
             self._connected = False
             return False
 
@@ -269,6 +290,9 @@ def create_database(backend: str = "dynamodb", **kwargs) -> DatabaseBackend:
         return DynamoDBBackend(
             region=kwargs.get("region", "us-east-1"),
             table_prefix=kwargs.get("table_prefix", "onepromptai"),
+            access_key_id=kwargs.get("access_key_id", ""),
+            secret_access_key=kwargs.get("secret_access_key", ""),
+            session_token=kwargs.get("session_token", ""),
         )
     elif backend == "mongodb":
         return MongoDBBackend(

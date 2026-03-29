@@ -122,22 +122,38 @@ class Dashboard:
             self.agents_active = sum(1 for a in self.agents.values() if a.status == "running")
             if status in ("complete", "partial"):
                 self.completed_tasks += 1
-                self._log(f"[green]{wid}[/] complete")
+                self._log(f"[green]{wid}[/] {status}")
             else:
                 self.failed_tasks += 1
                 self._log(f"[red]{wid}[/] {status}")
+            summ = (data.get("summary") or "").strip()
+            if summ:
+                one_line = summ.replace("\n", " ")[:280]
+                self._log(f"[dim]  {one_line}[/]")
+            paths = data.get("files_changed") or []
+            if isinstance(paths, list) and paths:
+                plist = ", ".join(str(p) for p in paths[:12])
+                extra = f" (+{len(paths) - 12} more)" if len(paths) > 12 else ""
+                self._log(f"[cyan]  files[/] {plist}{extra}")
+            committed = data.get("committed")
+            if committed is False and status in ("complete", "partial"):
+                self._log("[yellow]  no successful git commit — merge may be skipped[/]")
 
         elif etype == "merge":
             branch = data.get("branch", "?")
+            err = (data.get("error") or "").strip()
             if data.get("success"):
                 self.merge_merged += 1
                 self.commits += 1
                 self._log(f"[green]Merged[/] {branch}")
             elif data.get("conflict"):
                 self.merge_conflicts += 1
-                self._log(f"[red]Conflict[/] {branch}")
+                detail = f" — {err[:160]}" if err else ""
+                self._log(f"[red]Conflict[/] {branch}{detail}")
             else:
                 self.merge_failed += 1
+                detail = f": {err[:200]}" if err else ""
+                self._log(f"[red]Merge failed[/] {branch}{detail}")
 
         elif etype == "subplan":
             parent = data.get("parent", "?")
@@ -400,7 +416,11 @@ class Dashboard:
     def _render_controls(self) -> Panel:
         t = Text()
         t.append("CONTROLS\n", style="bold underline white")
-        t.append(f"Showing levels 2/2\n", style="dim")
+        if self.phase == "complete":
+            t.append("Run finished — press Enter to exit\n", style="bold yellow")
+            t.append("(or use --dashboard-auto-exit)\n", style="dim")
+        else:
+            t.append("Dashboard stays open until Enter\n", style="dim")
         t.append("+/- zoom levels\n", style="dim")
         t.append("tab=grid", style="dim")
 

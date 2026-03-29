@@ -13,6 +13,12 @@ from .types import Task
 logger = logging.getLogger(__name__)
 
 
+def _resolved_branch(task: Task) -> str:
+    """Planner JSON may set branch to \"\" — workers use worker/{id} but merge used raw task.branch."""
+    b = (task.branch or "").strip()
+    return b or f"worker/{task.id}"
+
+
 @dataclass
 class MergeResult:
     task_id: str
@@ -36,7 +42,7 @@ class MergeQueue:
 
     def enqueue(self, task: Task) -> None:
         self._queue.append(task)
-        logger.info("Merge enqueued: %s → %s", task.id, task.branch)
+        logger.info("Merge enqueued: %s → %s", task.id, _resolved_branch(task))
 
     def process_next(self) -> MergeResult | None:
         """Process the next branch in the queue. Returns None if empty."""
@@ -44,13 +50,14 @@ class MergeQueue:
             return None
 
         task = self._queue.pop(0)
-        logger.info("Merging branch: %s", task.branch)
+        branch = _resolved_branch(task)
+        logger.info("Merging branch: %s (task.branch=%r)", branch, task.branch)
 
-        result_data = self.git.merge_branch(task.branch, self.strategy)
+        result_data = self.git.merge_branch(branch, self.strategy)
 
         result = MergeResult(
             task_id=task.id,
-            branch=task.branch,
+            branch=branch,
             success=result_data["success"],
             conflict=result_data.get("conflict", False),
             error=result_data.get("error", ""),
@@ -60,12 +67,12 @@ class MergeQueue:
 
         if result.success:
             self.total_merged += 1
-            logger.info("Merged successfully: %s", task.branch)
+            logger.info("Merged successfully: %s", branch)
         elif result.conflict:
             self.total_conflicts += 1
-            logger.warning("Merge conflict: %s — %s", task.branch, result.error)
+            logger.warning("Merge conflict: %s — %s", branch, result.error)
         else:
-            logger.error("Merge failed: %s — %s", task.branch, result.error)
+            logger.error("Merge failed: %s — %s", branch, result.error)
 
         return result
 

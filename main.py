@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 import asyncio
-import json
 import logging
-import subprocess
 import sys
+import time
+import threading
 from pathlib import Path
 
 import click
@@ -15,19 +15,26 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
-def setup_logging(level: str = "info") -> None:
+def setup_logging(level: str = "info", to_stderr: bool = False) -> None:
     numeric_level = getattr(logging, level.upper(), logging.INFO)
-    logging.basicConfig(
-        level=numeric_level,
-        format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",
-        datefmt="%H:%M:%S",
-    )
+    handler = logging.StreamHandler(sys.stderr if to_stderr else sys.stdout)
+    handler.setFormatter(logging.Formatter(
+        "%(asctime)s [%(name)s] %(levelname)s: %(message)s", datefmt="%H:%M:%S"
+    ))
+    logging.root.handlers.clear()
+    logging.root.addHandler(handler)
+    logging.root.setLevel(numeric_level)
 
 
 @click.command()
 @click.argument("prompt")
 @click.option("--spec", type=click.Path(exists=True), help="Path to SPEC.md file")
 @click.option("--dashboard", is_flag=True, help="Enable Rich terminal dashboard")
+@click.option(
+    "--dashboard-auto-exit",
+    is_flag=True,
+    help="Close the dashboard after ~2s (default: keep it up until you press Enter)",
+)
 @click.option("--reset", is_flag=True, help="Reset target repo to initial commit")
 @click.option("--debug", is_flag=True, help="Enable debug logging")
 @click.option("--max-workers", type=int, default=None, help="Override max parallel workers")
@@ -35,33 +42,34 @@ def cli(
     prompt: str,
     spec: str | None,
     dashboard: bool,
+    dashboard_auto_exit: bool,
     reset: bool,
     debug: bool,
     max_workers: int | None,
 ):
     """Run OnePromptAI with a build prompt.
 
-    Example:
+    \b
+    Examples:
         python main.py "Build a REST API with user auth"
         python main.py --spec examples/example/SPEC.md "Build the project"
         python main.py --dashboard "Build a todo app"
     """
-    setup_logging("debug" if debug else "info")
-    logger = logging.getLogger("onepromptai")
-
     from oneprompt.config import AppConfig
     config = AppConfig.from_env()
 
     if max_workers is not None:
+        from oneprompt.config import WorkerConfig
         config = AppConfig(
             llm=config.llm,
             git=config.git,
-            worker=config.worker.__class__(
+            worker=WorkerConfig(
                 max_workers=max_workers,
                 timeout=config.worker.timeout,
                 merge_strategy=config.worker.merge_strategy,
             ),
-            mongo=config.mongo,
+            aws=config.aws,
+            database=config.database,
             orchestrator=config.orchestrator,
         )
 
@@ -71,6 +79,9 @@ def cli(
             click.echo(f"Configuration error: {e}", err=True)
         sys.exit(1)
 
+    if reset:
+        _reset_target_repo(config)
+
     build_spec = prompt
     if spec:
         spec_path = Path(spec)
@@ -79,9 +90,24 @@ def cli(
             build_spec = f"# User Prompt\n{prompt}\n\n{build_spec}"
 
     if dashboard:
-        _run_with_dashboard(config, build_spec, debug)
+        _run_with_dashboard(config, build_spec, debug, dashboard_auto_exit)
     else:
+        setup_logging("debug" if debug else "info")
         asyncio.run(_run_orchestrator(config, build_spec))
+
+
+def _reset_target_repo(config):
+    """Delete and re-clone the target repo for a fresh start."""
+    import shutil
+    target = Path(config.orchestrator.target_repo_path)
+    sandbox_dir = target.parent / "sandboxes"
+    if target.exists():
+        shutil.rmtree(target)
+        click.echo(f"Removed {target}")
+    if sandbox_dir.exists():
+        shutil.rmtree(sandbox_dir)
+        click.echo(f"Removed {sandbox_dir}")
+    click.echo("Target repo reset — will re-clone on next run.")
 
 
 async def _run_orchestrator(config, spec: str):
@@ -107,61 +133,94 @@ async def _run_orchestrator(config, spec: str):
         orchestrator.stop()
     except Exception as e:
         click.echo(f"Fatal error: {e}", err=True)
-        sys.exit(1)
+        raise
 
 
-def _run_with_dashboard(config, spec: str, debug: bool):
-    """Spawn orchestrator as subprocess, pipe NDJSON to Rich dashboard."""
+def _run_with_dashboard(
+    config,
+    spec: str,
+    debug: bool,
+    dashboard_auto_exit: bool,
+):
+    """Run orchestrator in-process, feeding NDJSON events directly to the Rich dashboard."""
     from dashboard import Dashboard
     from rich.live import Live
+    from oneprompt.orchestrator import Orchestrator
+    from oneprompt.types import NdjsonEvent
+
+    setup_logging("debug" if debug else "warning", to_stderr=True)
 
     dashboard = Dashboard()
+    lock = threading.Lock()
 
-    cmd = [
-        sys.executable, "-c",
-        f"""
-import asyncio, json, sys
-sys.path.insert(0, '.')
-from oneprompt.config import AppConfig
-from oneprompt.orchestrator import Orchestrator
-from dotenv import load_dotenv
-load_dotenv()
-config = AppConfig.from_env()
-spec = '''{spec.replace("'", "\\'")}'''
-asyncio.run(Orchestrator(config).run(spec))
-"""
-    ]
+    def on_event(event: NdjsonEvent):
+        with lock:
+            dashboard.process_event(event.to_dict())
 
-    process = subprocess.Popen(
-        cmd,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE if not debug else None,
-        text=True,
-        bufsize=1,
+    orchestrator = Orchestrator(config, on_event=on_event)
+
+    async def run_orchestrator():
+        try:
+            await orchestrator.run(spec)
+        except Exception as e:
+            dashboard.process_event({
+                "type": "error", "data": {"message": str(e)}
+            })
+
+    loop = asyncio.new_event_loop()
+    orch_thread = threading.Thread(
+        target=lambda: loop.run_until_complete(run_orchestrator()),
+        daemon=True,
     )
+    orch_thread.start()
 
     try:
-        with Live(dashboard.render(), console=dashboard.console, refresh_per_second=4) as live:
-            for line in iter(process.stdout.readline, ""):
-                line = line.strip()
-                if not line:
-                    continue
-                try:
-                    event = json.loads(line)
-                    dashboard.process_event(event)
+        with Live(
+            dashboard.render(),
+            console=dashboard.console,
+            refresh_per_second=4,
+            screen=True,
+        ) as live:
+            while orch_thread.is_alive():
+                with lock:
                     live.update(dashboard.render())
-                except json.JSONDecodeError:
-                    pass
+                time.sleep(0.25)
 
-        process.wait()
+            with lock:
+                dashboard.phase = "complete"
+                live.update(dashboard.render())
+
+            if dashboard_auto_exit or not sys.stdin.isatty():
+                time.sleep(2)
+            else:
+                import select
+
+                while True:
+                    with lock:
+                        live.update(dashboard.render())
+                    ready, _, _ = select.select([sys.stdin], [], [], 0.25)
+                    if ready:
+                        try:
+                            sys.stdin.readline()
+                        except (OSError, ValueError):
+                            pass
+                        break
+
     except KeyboardInterrupt:
-        process.terminate()
+        orchestrator.stop()
         click.echo("\nDashboard stopped.")
 
+    orch_thread.join(timeout=10)
 
-def cli_entry():
-    """Entry point for installed CLI."""
-    cli()
+    m = dashboard
+    click.echo(f"\n{'='*60}")
+    click.echo(f"  OnePromptAI Run Complete")
+    click.echo(f"{'='*60}")
+    click.echo(f"  Tasks:      {m.completed_tasks}/{m.total_tasks} completed")
+    click.echo(f"  Failed:     {m.failed_tasks}")
+    click.echo(f"  Commits:    {m.commits}")
+    click.echo(f"  Tokens:     {m.tokens:,}")
+    click.echo(f"{'='*60}\n")
 
 
 if __name__ == "__main__":
