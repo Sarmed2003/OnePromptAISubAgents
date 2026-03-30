@@ -1,0 +1,132 @@
+/* Modern CSS Styling for Hello World Page */
+
+/* Root Variables for Consistent Theming */
+:root {
+  --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  --text-primary: #2d3748;
+  --text-secondary: #ffffff;
+  --font-family-base: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+  --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Reset and Base Styles */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* Body Styling with Modern Gradient Background */
+body {
+  font-family: var(--font-family-base);
+  background: var(--primary-gradient);
+  color: var(--text-primary);
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 1rem;
+  transition: var(--transition-smooth);
+}
+
+/* Container for Content Centering using Flexbox */
+body > * {
+  text-align: center;
+}
+
+/* H1 Styling - Prominent and Modern */
+h1 {
+  font-size: clamp(2rem, 8vw, 4rem);
+  font-weight: 700;
+  color: var(--text-secondary);
+  margin-bottom: 1.5rem;
+  letter-spacing: -0.02em;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: var(--transition-smooth);
+}
+
+/* H1 Hover Effect for Interactivity */
+h1:hover {
+  transform: translateY(-4px);
+  text-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+/* Paragraph Styling - Readable and Accessible */
+p {
+  font-size: clamp(1rem, 2vw, 1.25rem);
+  line-height: 1.6;
+  color: var(--text-secondary);
+  max-width: 600px;
+  margin: 0 auto;
+  font-weight: 400;
+  letter-spacing: 0.3px;
+  transition: var(--transition-smooth);
+}
+
+/* Paragraph Hover Effect */
+p:hover {
+  transform: scale(1.02);
+}
+
+/* Responsive Design - Tablet and Below */
+@media (max-width: 768px) {
+  body {
+    padding: 1.5rem;
+  }
+
+  h1 {
+    margin-bottom: 1rem;
+    font-size: 2rem;
+  }
+
+  p {
+    font-size: 1rem;
+    line-height: 1.5;
+  }
+}
+
+/* Responsive Design - Small Mobile Devices */
+@media (max-width: 480px) {
+  body {
+    padding: 1rem;
+  }
+
+  h1 {
+    font-size: 1.75rem;
+    margin-bottom: 0.75rem;
+  }
+
+  p {
+    font-size: 0.95rem;
+    line-height: 1.5;
+  }
+}
+
+/* Accessibility - Reduced Motion Support */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  h1:hover {
+    transform: none;
+  }
+
+  p:hover {
+    transform: none;
+  }
+}
+
+/* Dark Mode Support */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    --text-primary: #e2e8f0;
+  }
+
+  body {
+    color: var(--text-primary);
+  }
+}
