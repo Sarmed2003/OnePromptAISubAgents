@@ -9,12 +9,12 @@
 <body>
     <canvas id="gameCanvas" width="800" height="600"></canvas>
     <script>
-        // Game state object
+        // Game state object with required properties
         const gameState = {
-            isRunning: true,
             score: 0,
-            playerLane: 1,
-            gameOver: false
+            gameActive: true,
+            currentLane: 0,
+            playerY: 0
         };
 
         // Get canvas and context
@@ -27,8 +27,11 @@
             ctx.fillStyle = '#000000';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
+            // Log that game loop is running
+            console.log('Game loop running');
+
             // Game logic would go here
-            // For now, just rendering the black background
+            // Game state is updated each frame cycle
 
             // Continue the loop
             requestAnimationFrame(gameLoop);
