@@ -230,14 +230,565 @@ canvas:hover {
     </div>
 
     <!-- Load all game modules in correct dependency order -->
-    <script src="player.js"></script>
-    <script src="obstacles.js"></script>
-    <script src="coins.js"></script>
-    <script src="collision.js"></script>
-    <script src="renderer.js"></script>
-    <script src="input.js"></script>
-    <script src="ui.js"></script>
-    <script src="game.js"></script>
+    <script>
+class Player {
+  constructor() {
+    this.width = 40;
+    this.height = 40;
+    this.speed = 15;
+    this.currentLane = 1; // 0 = left, 1 = middle, 2 = right
+    this.updatePosition();
+  }
+
+  updatePosition() {
+    const laneWidth = 800 / 3;
+    this.x = this.currentLane * laneWidth + (laneWidth - this.width) / 2;
+    this.y = 550; // Near bottom of screen
+  }
+
+  moveLeft() {
+    if (this.currentLane > 0) {
+      this.currentLane--;
+      this.updatePosition();
+    }
+  }
+
+  moveRight() {
+    if (this.currentLane < 2) {
+      this.currentLane++;
+      this.updatePosition();
+    }
+  }
+
+  update() {
+    // Player position is controlled by movement input
+  }
+
+  draw(ctx) {
+    ctx.fillStyle = '#667eea';
+    ctx.fillRect(this.x, this.y, this.width, this.height);
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(this.x, this.y, this.width, this.height);
+  }
+}
+</script>
+    <script>
+class Obstacle {
+  constructor() {
+    this.width = 60;
+    this.height = 40;
+    this.speed = 6;
+    this.lane = Math.floor(Math.random() * 3);
+    this.setPosition();
+  }
+
+  setPosition() {
+    const laneWidth = 800 / 3;
+    this.x = this.lane * laneWidth + (laneWidth - this.width) / 2;
+    this.y = -this.height;
+  }
+
+  update() {
+    this.y += this.speed;
+  }
+
+  draw(ctx) {
+    ctx.fillStyle = '#ef4444';
+    ctx.fillRect(this.x, this.y, this.width, this.height);
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(this.x, this.y, this.width, this.height);
+  }
+}
+</script>
+    <script>
+class Coin {
+  constructor(x, y) {
+    this.x = x;
+    this.y = y;
+    this.width = 20;
+    this.height = 20;
+    this.speed = 4;
+    this.collected = false;
+  }
+
+  update() {
+    this.y += this.speed;
+  }
+
+  isOffScreen() {
+    return this.y > 600;
+  }
+
+  isCollected() {
+    return this.collected;
+  }
+
+  setCollected() {
+    this.collected = true;
+  }
+
+  draw(ctx) {
+    ctx.fillStyle = '#FFD700';
+    ctx.beginPath();
+    ctx.arc(this.x + this.width / 2, this.y + this.height / 2, this.width / 2, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+window.Coin = Coin;
+window.coins = [];
+
+let spawnCounter = 0;
+let lastLane = -1;
+
+function spawnCoin() {
+  spawnCounter++;
+
+  if (spawnCounter >= 120) {
+    spawnCounter = 0;
+
+    let lane;
+    do {
+      lane = Math.floor(Math.random() * 3);
+    } while (lane === lastLane && window.coins.length > 0);
+    lastLane = lane;
+
+    const laneWidth = 800 / 3;
+    const x = lane * laneWidth + (laneWidth - 20) / 2;
+    const y = -20;
+
+    const coin = new Coin(x, y);
+    window.coins.push(coin);
+  }
+}
+
+window.spawnCoin = spawnCoin;
+
+window.updateCoins = function() {
+  for (let i = window.coins.length - 1; i >= 0; i--) {
+    window.coins[i].update();
+
+    if (window.coins[i].isOffScreen() || window.coins[i].isCollected()) {
+      window.coins.splice(i, 1);
+    }
+  }
+};
+
+window.drawCoins = function(ctx) {
+  for (let coin of window.coins) {
+    coin.draw(ctx);
+  }
+};
+</script>
+    <script>
+/**
+ * Collision Detection Module
+ * Handles AABB collision detection for player-obstacle and player-coin interactions
+ */
+
+/**
+ * Checks if player collides with any obstacle using AABB collision detection
+ * @param {Object} player - Player object with x, y, width, height properties
+ * @param {Array} obstacles - Array of obstacle objects with x, y, width, height properties
+ * @returns {boolean} True if player overlaps any obstacle, false otherwise
+ */
+function checkPlayerObstacleCollision(player, obstacles) {
+  if (!player || !obstacles || obstacles.length === 0) {
+    return false;
+  }
+
+  for (let i = 0; i < obstacles.length; i++) {
+    const obstacle = obstacles[i];
+    if (isAABBOverlapping(player, obstacle)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+/**
+ * Removes obstacles that have moved offscreen (below canvas)
+ * @param {Array} obstacles - Array of obstacle objects with y and height properties
+ * @returns {Array} Filtered array with offscreen obstacles removed
+ */
+function removeCollided(obstacles) {
+  if (!obstacles || obstacles.length === 0) {
+    return obstacles;
+  }
+
+  // Assuming canvas height is 600 (standard for this game)
+  // Remove obstacles that have completely passed the bottom of the screen
+  const CANVAS_HEIGHT = 600;
+  return obstacles.filter(obstacle => obstacle.y < CANVAS_HEIGHT);
+}
+
+/**
+ * Checks which coins the player has collected
+ * Uses a more generous hitbox for coins (easier to collect than obstacles to hit)
+ * @param {Object} player - Player object with x, y, width, height properties
+ * @param {Array} coins - Array of coin objects with x, y, width, height properties
+ * @returns {Array} Array of collected coin indices
+ */
+function checkPlayerCoinCollision(player, coins) {
+  if (!player || !coins || coins.length === 0) {
+    return [];
+  }
+
+  const collectedIndices = [];
+
+  for (let i = 0; i < coins.length; i++) {
+    const coin = coins[i];
+    // Coins have a smaller, centered hitbox that's more forgiving
+    // Create an expanded hitbox around the coin for easier collection
+    const coinHitbox = {
+      x: coin.x + (coin.width * 0.1),
+      y: coin.y + (coin.height * 0.1),
+      width: coin.width * 0.8,
+      height: coin.height * 0.8
+    };
+
+    if (isAABBOverlapping(player, coinHitbox)) {
+      collectedIndices.push(i);
+    }
+  }
+
+  return collectedIndices;
+}
+
+/**
+ * Removes collected coins from the array and returns the count
+ * @param {Array} coins - Array of coin objects
+ * @param {Array} collectedIndices - Array of indices of collected coins
+ * @returns {Object} Object with updated coins array and count of removed coins
+ */
+function removeCoinCollected(coins, collectedIndices) {
+  if (!coins || !collectedIndices || collectedIndices.length === 0) {
+    return {
+      coins: coins || [],
+      count: 0
+    };
+  }
+
+  // Sort indices in descending order to remove from end first
+  const sortedIndices = [...collectedIndices].sort((a, b) => b - a);
+  const count = sortedIndices.length;
+
+  // Remove duplicates and filter out of bounds indices
+  const uniqueIndices = [...new Set(sortedIndices)].filter(
+    index => index >= 0 && index < coins.length
+  );
+
+  // Remove coins in reverse order to maintain correct indices
+  let updatedCoins = [...coins];
+  for (const index of uniqueIndices) {
+    updatedCoins.splice(index, 1);
+  }
+
+  return {
+    coins: updatedCoins,
+    count: uniqueIndices.length
+  };
+}
+
+/**
+ * Helper function: Checks if two AABB rectangles overlap
+ * Uses standard AABB collision formula
+ * @param {Object} rect1 - Rectangle with x, y, width, height
+ * @param {Object} rect2 - Rectangle with x, y, width, height
+ * @returns {boolean} True if rectangles overlap, false otherwise
+ */
+function isAABBOverlapping(rect1, rect2) {
+  return (
+    rect1.x < rect2.x + rect2.width &&
+    rect1.x + rect1.width > rect2.x &&
+    rect1.y < rect2.y + rect2.height &&
+    rect1.y + rect1.height > rect2.y
+  );
+}
+</script>
+    <script>
+/**
+ * Renderer Module
+ * Handles all canvas drawing operations
+ */
+
+function render(ctx, player, obstacles, coins, score) {
+  if (!ctx || !player) {
+    return;
+  }
+
+  // Clear canvas
+  ctx.fillStyle = '#000000';
+  ctx.fillRect(0, 0, 800, 600);
+
+  // Draw lane dividers
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+  ctx.lineWidth = 2;
+  ctx.setLineDash([10, 10]);
+  
+  // Vertical lines dividing lanes
+  ctx.beginPath();
+  ctx.moveTo(800 / 3, 0);
+  ctx.lineTo(800 / 3, 600);
+  ctx.stroke();
+  
+  ctx.beginPath();
+  ctx.moveTo((800 / 3) * 2, 0);
+  ctx.lineTo((800 / 3) * 2, 600);
+  ctx.stroke();
+  
+  ctx.setLineDash([]);
+
+  // Draw all obstacles
+  if (obstacles && obstacles.length > 0) {
+    for (let obstacle of obstacles) {
+      obstacle.draw(ctx);
+    }
+  }
+
+  // Draw all coins
+  if (coins && coins.length > 0) {
+    for (let coin of coins) {
+      coin.draw(ctx);
+    }
+  }
+
+  // Draw player
+  player.draw(ctx);
+}
+</script>
+    <script>
+// Input handler for player movement
+// Manages keyboard input with debouncing to prevent spam
+
+const INPUT_DEBOUNCE_MS = 100;
+let lastInputTime = 0;
+let keysPressed = {};
+
+/**
+ * Handles keyboard input for player movement.
+ * Listens for ArrowLeft, ArrowRight, A, and D keys.
+ * Debounces input to prevent rapid lane switching.
+ * Prevents default page scroll behavior for arrow keys.
+ */
+function handleKeyDown(event) {
+  // Check if event is a keyboard event with a key property
+  if (!event || !event.key) {
+    return;
+  }
+
+  const key = event.key.toLowerCase();
+  let direction = null;
+
+  // Determine direction based on key pressed
+  if (key === 'arrowleft' || key === 'a') {
+    direction = -1; // Move left
+    event.preventDefault();
+  } else if (key === 'arrowright' || key === 'd') {
+    direction = 1; // Move right
+    event.preventDefault();
+  }
+
+  // If no relevant key was pressed, return early
+  if (direction === null) {
+    return;
+  }
+
+  // Store key state
+  keysPressed[key] = true;
+}
+
+function handleKeyUp(event) {
+  if (!event || !event.key) {
+    return;
+  }
+
+  const key = event.key.toLowerCase();
+  keysPressed[key] = false;
+}
+
+/**
+ * Update function called each frame to process input
+ * Applies debouncing and updates player position
+ */
+function handleInputUpdate() {
+  if (!window.player) {
+    return;
+  }
+
+  const now = Date.now();
+  const canMove = (now - lastInputTime) >= INPUT_DEBOUNCE_MS;
+
+  // Check for left movement
+  if ((keysPressed['arrowleft'] || keysPressed['a']) && canMove) {
+    window.player.moveLeft();
+    lastInputTime = now;
+  }
+
+  // Check for right movement
+  if ((keysPressed['arrowright'] || keysPressed['d']) && canMove) {
+    window.player.moveRight();
+    lastInputTime = now;
+  }
+}
+
+// Attach event listeners when DOM is ready
+if (typeof window !== 'undefined') {
+  window.addEventListener('keydown', handleKeyDown);
+  window.addEventListener('keyup', handleKeyUp);
+}
+</script>
+    <script>
+/**
+ * UI Module
+ * Handles UI updates and display
+ */
+
+function updateScoreDisplay() {
+  const scoreDisplay = document.getElementById('scoreDisplay');
+  if (scoreDisplay) {
+    scoreDisplay.textContent = 'Score: ' + window.score;
+  }
+}
+</script>
+    <script>
+// Game state initialization
+window.player = null;
+window.obstacles = [];
+window.coins = [];
+window.score = 0;
+window.gameRunning = true;
+window.spawnTimer = 0;
+window.obstacleSpawnInterval = 120; // frames between obstacle spawns
+window.coinSpawnInterval = 90; // frames between coin spawns
+window.gameLoopId = null;
+
+// Initialize game state
+function initializeGameState() {
+  window.player = new Player();
+  window.obstacles = [];
+  window.coins = [];
+  window.score = 0;
+  window.gameRunning = true;
+  window.spawnTimer = 0;
+}
+
+// Update score display in UI
+function addScore(points) {
+  window.score += points;
+  updateScoreDisplay();
+}
+
+// Main game loop - runs at ~60fps via requestAnimationFrame
+window.gameLoop = function() {
+  if (!window.gameRunning) {
+    return;
+  }
+
+  // Step 1: Handle input
+  handleInputUpdate();
+
+  // Step 2: Update all entities
+  window.player.update();
+  
+  for (let i = 0; i < window.obstacles.length; i++) {
+    window.obstacles[i].update();
+  }
+  
+  window.updateCoins();
+
+  // Step 3: Spawn obstacles and coins (increment timers)
+  window.spawnTimer++;
+  
+  if (window.spawnTimer >= window.obstacleSpawnInterval) {
+    const obstacle = new Obstacle();
+    window.obstacles.push(obstacle);
+    window.spawnTimer = 0;
+  }
+  
+  // Spawn coins
+  window.spawnCoin();
+
+  // Step 4: Collision checks
+  // Check player-obstacle collisions
+  if (checkPlayerObstacleCollision(window.player, window.obstacles)) {
+    window.endGame();
+    return;
+  }
+  
+  // Check player-coin collisions
+  const collectedIndices = checkPlayerCoinCollision(window.player, window.coins);
+  if (collectedIndices.length > 0) {
+    const result = removeCoinCollected(window.coins, collectedIndices);
+    window.coins = result.coins;
+    addScore(result.count);
+  }
+
+  // Step 5: Render
+  render(window.ctx, window.player, window.obstacles, window.coins, window.score);
+
+  // Step 6: Remove offscreen entities
+  // Remove offscreen obstacles
+  for (let i = window.obstacles.length - 1; i >= 0; i--) {
+    if (window.obstacles[i].y > window.canvas.height) {
+      window.obstacles.splice(i, 1);
+    }
+  }
+  
+  // Coins are handled by coins.js update
+
+  // Schedule next frame
+  window.gameLoopId = requestAnimationFrame(window.gameLoop);
+};
+
+// Restart the game - reset state and resume loop
+window.restartGame = function() {
+  // Cancel any pending animation frame
+  if (window.gameLoopId) {
+    cancelAnimationFrame(window.gameLoopId);
+    window.gameLoopId = null;
+  }
+
+  // Reset all game state
+  initializeGameState();
+  
+  // Hide game-over screen if it exists
+  const gameOverScreen = document.getElementById('gameOverScreen');
+  if (gameOverScreen) {
+    gameOverScreen.style.display = 'none';
+  }
+  
+  // Update score display
+  updateScoreDisplay();
+  
+  // Restart the game loop
+  window.gameLoopId = requestAnimationFrame(window.gameLoop);
+};
+
+// End the game - stop loop and show game-over screen
+window.endGame = function() {
+  window.gameRunning = false;
+  
+  // Cancel the animation frame
+  if (window.gameLoopId) {
+    cancelAnimationFrame(window.gameLoopId);
+    window.gameLoopId = null;
+  }
+  
+  // Display game-over screen with final score
+  const gameOverScreen = document.getElementById('gameOverScreen');
+  if (gameOverScreen) {
+    gameOverScreen.style.display = 'flex';
+    const finalScoreElement = document.getElementById('finalScore');
+    if (finalScoreElement) {
+      finalScoreElement.textContent = window.score;
+    }
+  }
+};
+</script>
     
     <!-- Initialize game on page load -->
     <script>
