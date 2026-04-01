@@ -1,57 +1,31 @@
-class GameState {
-  constructor() {
-    this.score = 0;
-    this.coinsCollected = 0;
-    this.gameRunning = false;
-    this.gameTime = 0;
-    this.difficulty = 1;
-  }
+const gameState = {
+  state: 'playing',
+  score: 0,
+  coinsCollected: 0,
 
-  startGame() {
-    this.gameRunning = true;
-    this.gameTime = 0;
-    this.score = 0;
-    this.coinsCollected = 0;
-    this.difficulty = 1;
-  }
+  setState(newState) {
+    if (newState === 'playing' || newState === 'gameOver' || newState === 'paused') {
+      this.state = newState;
+    }
+  },
 
-  endGame() {
-    this.gameRunning = false;
-  }
+  getState() {
+    return this.state;
+  },
 
   addScore(points) {
     this.score += points;
-  }
+  },
 
   addCoin() {
     this.coinsCollected += 1;
-    this.addScore(10);
-  }
-
-  updateTime() {
-    this.gameTime += 1;
-    this.difficulty = 1 + this.gameTime / 3000;
-  }
-
-  getGameState() {
-    return {
-      score: this.score,
-      coinsCollected: this.coinsCollected,
-      gameRunning: this.gameRunning,
-      gameTime: this.gameTime,
-      difficulty: this.difficulty
-    };
-  }
+  },
 
   resetGame() {
+    this.state = 'playing';
     this.score = 0;
     this.coinsCollected = 0;
-    this.gameRunning = false;
-    this.gameTime = 0;
-    this.difficulty = 1;
   }
-}
+};
 
-const gameStateManager = new GameState();
-
-export { GameState, gameStateManager };
+export { gameState };
