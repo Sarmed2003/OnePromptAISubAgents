@@ -234,6 +234,31 @@
     <!-- Load Babylon.js from CDN -->
     <script src="https://cdn.babylonjs.com/babylon.js"></script>
 
+    <!-- Task 7: Input handler for keyboard input -->
+    <script>
+        window.inputHandler = {
+            keysPressed: {},
+            
+            init: function() {
+                window.addEventListener('keydown', this.handleKeyDown.bind(this));
+                window.addEventListener('keyup', this.handleKeyUp.bind(this));
+            },
+            
+            handleKeyDown: function(event) {
+                this.keysPressed[event.key.toLowerCase()] = true;
+            },
+            
+            handleKeyUp: function(event) {
+                this.keysPressed[event.key.toLowerCase()] = false;
+            },
+            
+            update: function() {
+                // This method can be called from the game loop to process input
+                // The keysPressed object is continuously updated by event listeners
+            }
+        };
+    </script>
+
     <!-- Task 2: Scene setup and camera/lighting (empty - to be filled by task-002) -->
     <script>
         // Task 2: Scene initialization, camera, lighting
@@ -257,11 +282,6 @@
     <!-- Task 6: Game loop and state management (empty - to be filled by task-006) -->
     <script>
         // Task 6: Main game loop and state management
-    </script>
-
-    <!-- Task 7: UI and HUD updates (empty - to be filled by task-007) -->
-    <script>
-        // Task 7: UI updates, score display, HUD management
     </script>
 
     <!-- Task 8: Audio system (empty - to be filled by task-008) -->
