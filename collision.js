@@ -123,13 +123,3 @@ function isAABBOverlapping(rect1, rect2) {
     rect1.y + rect1.height > rect2.y
   );
 }
-
-// Export all functions
-if (typeof module !== 'undefined' && module.exports) {
-  module.exports = {
-    checkPlayerObstacleCollision,
-    removeCollided,
-    checkPlayerCoinCollision,
-    removeCoinCollected
-  };
-}

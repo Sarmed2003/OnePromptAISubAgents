@@ -19,6 +19,12 @@ function initializeGameState() {
   window.spawnTimer = 0;
 }
 
+// Update score display in UI
+function addScore(points) {
+  window.score += points;
+  updateScoreDisplay();
+}
+
 // Main game loop - runs at ~60fps via requestAnimationFrame
 window.gameLoop = function() {
   if (!window.gameRunning) {
@@ -26,7 +32,7 @@ window.gameLoop = function() {
   }
 
   // Step 1: Handle input
-  handleInput();
+  handleInputUpdate();
 
   // Step 2: Update all entities
   window.player.update();
@@ -35,9 +41,7 @@ window.gameLoop = function() {
     window.obstacles[i].update();
   }
   
-  for (let i = 0; i < window.coins.length; i++) {
-    window.coins[i].update();
-  }
+  window.updateCoins();
 
   // Step 3: Spawn obstacles and coins (increment timers)
   window.spawnTimer++;
@@ -48,48 +52,36 @@ window.gameLoop = function() {
     window.spawnTimer = 0;
   }
   
-  // Spawn coins on a separate timer
-  if (window.spawnTimer % Math.floor(window.obstacleSpawnInterval * 0.75) === 0) {
-    const coin = new Coin();
-    window.coins.push(coin);
-  }
+  // Spawn coins
+  window.spawnCoin();
 
   // Step 4: Collision checks
   // Check player-obstacle collisions
-  for (let i = 0; i < window.obstacles.length; i++) {
-    if (checkCollision(window.player, window.obstacles[i])) {
-      window.endGame();
-      return;
-    }
+  if (checkPlayerObstacleCollision(window.player, window.obstacles)) {
+    window.endGame();
+    return;
   }
   
   // Check player-coin collisions
-  for (let i = window.coins.length - 1; i >= 0; i--) {
-    if (checkCollision(window.player, window.coins[i])) {
-      addScore(1);
-      window.coins.splice(i, 1);
-    }
+  const collectedIndices = checkPlayerCoinCollision(window.player, window.coins);
+  if (collectedIndices.length > 0) {
+    const result = removeCoinCollected(window.coins, collectedIndices);
+    window.coins = result.coins;
+    addScore(result.count);
   }
 
   // Step 5: Render
-  render(window.player, window.obstacles, window.coins, window.score);
+  render(window.ctx, window.player, window.obstacles, window.coins, window.score);
 
   // Step 6: Remove offscreen entities
   // Remove offscreen obstacles
   for (let i = window.obstacles.length - 1; i >= 0; i--) {
-    if (window.obstacles[i].x + window.obstacles[i].width < 0 ||
-        window.obstacles[i].x > window.canvas.width) {
+    if (window.obstacles[i].y > window.canvas.height) {
       window.obstacles.splice(i, 1);
     }
   }
   
-  // Remove offscreen coins
-  for (let i = window.coins.length - 1; i >= 0; i--) {
-    if (window.coins[i].x + window.coins[i].width < 0 ||
-        window.coins[i].x > window.canvas.width) {
-      window.coins.splice(i, 1);
-    }
-  }
+  // Coins are handled by coins.js update
 
   // Schedule next frame
   window.gameLoopId = requestAnimationFrame(window.gameLoop);
@@ -111,6 +103,9 @@ window.restartGame = function() {
   if (gameOverScreen) {
     gameOverScreen.style.display = 'none';
   }
+  
+  // Update score display
+  updateScoreDisplay();
   
   // Restart the game loop
   window.gameLoopId = requestAnimationFrame(window.gameLoop);
@@ -136,44 +131,3 @@ window.endGame = function() {
     }
   }
 };
-
-// Collision detection - AABB (Axis-Aligned Bounding Box)
-function checkCollision(entity1, entity2) {
-  return entity1.x < entity2.x + entity2.width &&
-         entity1.x + entity1.width > entity2.x &&
-         entity1.y < entity2.y + entity2.height &&
-         entity1.y + entity1.height > entity2.y;
-}
-
-// Add score and update UI
-function addScore(points) {
-  window.score += points;
-  const scoreElement = document.getElementById('score');
-  if (scoreElement) {
-    scoreElement.textContent = window.score;
-  }
-}
-
-// Start the game on page load
-window.addEventListener('DOMContentLoaded', function() {
-  // Initialize canvas and rendering context
-  window.canvas = document.getElementById('gameCanvas');
-  if (!window.canvas) {
-    console.error('Canvas element with id "gameCanvas" not found');
-    return;
-  }
-  
-  window.ctx = window.canvas.getContext('2d');
-  
-  // Initialize game state
-  initializeGameState();
-  
-  // Start the game loop
-  window.gameLoopId = requestAnimationFrame(window.gameLoop);
-  
-  // Setup restart button
-  const restartButton = document.getElementById('restartButton');
-  if (restartButton) {
-    restartButton.addEventListener('click', window.restartGame);
-  }
-});

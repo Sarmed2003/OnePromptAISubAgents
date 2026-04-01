@@ -3,6 +3,7 @@
 
 const INPUT_DEBOUNCE_MS = 100;
 let lastInputTime = 0;
+let keysPressed = {};
 
 /**
  * Handles keyboard input for player movement.
@@ -10,7 +11,7 @@ let lastInputTime = 0;
  * Debounces input to prevent rapid lane switching.
  * Prevents default page scroll behavior for arrow keys.
  */
-function handleInput(event) {
+function handleKeyDown(event) {
   // Check if event is a keyboard event with a key property
   if (!event || !event.key) {
     return;
@@ -22,8 +23,10 @@ function handleInput(event) {
   // Determine direction based on key pressed
   if (key === 'arrowleft' || key === 'a') {
     direction = -1; // Move left
+    event.preventDefault();
   } else if (key === 'arrowright' || key === 'd') {
     direction = 1; // Move right
+    event.preventDefault();
   }
 
   // If no relevant key was pressed, return early
@@ -31,28 +34,46 @@ function handleInput(event) {
     return;
   }
 
-  // Prevent default page scroll behavior for arrow keys
-  if (key === 'arrowleft' || key === 'arrowright') {
-    event.preventDefault();
+  // Store key state
+  keysPressed[key] = true;
+}
+
+function handleKeyUp(event) {
+  if (!event || !event.key) {
+    return;
   }
 
-  // Check debounce timer
-  const currentTime = Date.now();
-  if (currentTime - lastInputTime < INPUT_DEBOUNCE_MS) {
-    return; // Input debounced, ignore this input
+  const key = event.key.toLowerCase();
+  keysPressed[key] = false;
+}
+
+/**
+ * Update function called each frame to process input
+ * Applies debouncing and updates player position
+ */
+function handleInputUpdate() {
+  if (!window.player) {
+    return;
   }
 
-  // Update last input time
-  lastInputTime = currentTime;
+  const now = Date.now();
+  const canMove = (now - lastInputTime) >= INPUT_DEBOUNCE_MS;
 
-  // Call player's switchLane method if it exists
-  if (window.player && typeof window.player.switchLane === 'function') {
-    window.player.switchLane(direction);
+  // Check for left movement
+  if ((keysPressed['arrowleft'] || keysPressed['a']) && canMove) {
+    window.player.moveLeft();
+    lastInputTime = now;
+  }
+
+  // Check for right movement
+  if ((keysPressed['arrowright'] || keysPressed['d']) && canMove) {
+    window.player.moveRight();
+    lastInputTime = now;
   }
 }
 
-// Export the handleInput function to the window object
-window.handleInput = handleInput;
-
-// Set up event listeners for keyboard input
-document.addEventListener('keydown', handleInput);
+// Attach event listeners when DOM is ready
+if (typeof window !== 'undefined') {
+  window.addEventListener('keydown', handleKeyDown);
+  window.addEventListener('keyup', handleKeyUp);
+}
