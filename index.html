@@ -24,18 +24,22 @@
             box-sizing: border-box;
         }
 
+        html, body {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            padding: 0;
+        }
+
         body {
             font-family: var(--font-stack);
             background-color: var(--dark-bg);
             color: var(--text-primary);
-            width: 100vw;
-            height: 100vh;
-            margin: 0;
-            padding: 0;
             overflow: hidden;
             display: flex;
             justify-content: center;
             align-items: center;
+            position: relative;
         }
 
         /* Canvas fills entire viewport */
@@ -44,9 +48,12 @@
             width: 100vw;
             height: 100vh;
             touch-action: none;
+            position: fixed;
+            top: 0;
+            left: 0;
         }
 
-        /* HUD overlay container - top right corner */
+        /* HUD overlay container - positioned absolutely for score and speed */
         #hud {
             position: fixed;
             top: 20px;
@@ -58,13 +65,13 @@
             pointer-events: none;
         }
 
-        /* Score display - large bold font with glow */
+        /* Score display - top-left equivalent positioning within HUD */
         #scoreDisplay {
             font-size: 48px;
             font-weight: 700;
             color: var(--text-primary);
             text-shadow: 0 0 10px var(--cyan-glow), 0 0 20px var(--cyan-glow), 0 0 30px var(--purple-glow);
-            background-color: rgba(10, 14, 39, 0.7);
+            background-color: rgba(10, 14, 39, 0.8);
             padding: 15px 25px;
             border-radius: 8px;
             border: 2px solid var(--cyan-glow);
@@ -74,6 +81,7 @@
             transition: var(--transition);
             min-width: 200px;
             text-align: right;
+            pointer-events: auto;
         }
 
         #scoreDisplay:hover {
@@ -87,7 +95,7 @@
             font-weight: 600;
             color: var(--text-secondary);
             text-shadow: 0 0 8px var(--cyan-glow), 0 0 15px var(--purple-glow);
-            background-color: rgba(10, 14, 39, 0.7);
+            background-color: rgba(10, 14, 39, 0.8);
             padding: 10px 20px;
             border-radius: 6px;
             border: 1px solid var(--cyan-glow);
@@ -96,6 +104,7 @@
             letter-spacing: 1px;
             transition: var(--transition);
             text-align: right;
+            pointer-events: auto;
         }
 
         #speedDisplay:hover {
@@ -110,30 +119,34 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background-color: rgba(0, 0, 0, 0.8);
+            background: linear-gradient(135deg, rgba(0, 0, 0, 0.7) 0%, rgba(10, 14, 39, 0.8) 100%);
             display: none;
             flex-direction: column;
             justify-content: center;
             align-items: center;
             z-index: 1000;
-            backdrop-filter: blur(5px);
-            animation: fadeIn 0.4s ease-out;
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            animation: fadeIn 0.4s ease-out forwards;
+            pointer-events: none;
         }
 
         #gameOverModal.visible {
             display: flex;
+            pointer-events: auto;
         }
 
-        /* Game-over content box */
+        /* Game-over content box with gradient overlay effect */
         .game-over-content {
             text-align: center;
             padding: 50px 40px;
             border-radius: 12px;
-            background-color: rgba(10, 14, 39, 0.95);
+            background: linear-gradient(135deg, rgba(10, 14, 39, 0.95) 0%, rgba(20, 25, 50, 0.95) 100%);
             border: 3px solid var(--cyan-glow);
             box-shadow: 0 0 30px rgba(0, 255, 255, 0.4), 0 0 60px rgba(255, 0, 255, 0.2), inset 0 0 20px rgba(0, 255, 255, 0.1);
             max-width: 500px;
-            animation: slideUp 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+            animation: slideUp 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+            pointer-events: auto;
         }
 
         .game-over-content h1 {
@@ -178,6 +191,7 @@
             font-family: var(--font-stack);
             letter-spacing: 1px;
             pointer-events: auto;
+            text-shadow: 0 0 5px rgba(0, 0, 0, 0.3);
         }
 
         .restart-btn:hover {
@@ -188,6 +202,10 @@
 
         .restart-btn:active {
             transform: translateY(-1px) scale(1.02);
+        }
+
+        .restart-btn:focus {
+            outline: none;
         }
 
         /* Animations */
@@ -208,6 +226,82 @@
             to {
                 opacity: 1;
                 transform: translateY(0);
+            }
+        }
+
+        /* Mobile responsiveness */
+        @media (max-width: 768px) {
+            #scoreDisplay {
+                font-size: 32px;
+                padding: 12px 20px;
+                min-width: 160px;
+            }
+
+            #speedDisplay {
+                font-size: 18px;
+                padding: 8px 15px;
+            }
+
+            .game-over-content {
+                padding: 40px 30px;
+                max-width: 90vw;
+            }
+
+            .game-over-content h1 {
+                font-size: 42px;
+            }
+
+            #finalScore {
+                font-size: 56px;
+            }
+
+            .restart-btn {
+                padding: 14px 35px;
+                font-size: 18px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            #hud {
+                top: 10px;
+                right: 10px;
+                gap: 10px;
+            }
+
+            #scoreDisplay {
+                font-size: 24px;
+                padding: 10px 15px;
+                min-width: 140px;
+            }
+
+            #speedDisplay {
+                font-size: 16px;
+                padding: 7px 12px;
+            }
+
+            .game-over-content {
+                padding: 30px 20px;
+                max-width: 95vw;
+            }
+
+            .game-over-content h1 {
+                font-size: 32px;
+                margin-bottom: 15px;
+            }
+
+            .game-over-content p {
+                font-size: 16px;
+            }
+
+            #finalScore {
+                font-size: 42px;
+                margin: 15px 0 20px 0;
+            }
+
+            .restart-btn {
+                padding: 12px 30px;
+                font-size: 16px;
+                margin-top: 15px;
             }
         }
     </style>
