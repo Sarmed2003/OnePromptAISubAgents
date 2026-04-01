@@ -1,94 +1,86 @@
-class InputHandler {
+class Input {
   constructor() {
-    this.callback = null;
-    this.lastDirection = null;
-    this.lastInputTime = 0;
-    this.debounceDelay = 100;
+    this.laneChangeCallback = null;
+    this.currentLane = 1;
     this.touchStartX = null;
     this.touchStartY = null;
     this.minSwipeDistance = 50;
+    this.lastInputTime = 0;
+    this.debounceDelay = 100;
   }
 
-  init(callback) {
-    if (typeof callback !== 'function') {
-      throw new Error('Callback must be a function');
-    }
-    this.callback = callback;
-    this.attachKeyboardListeners();
-    this.attachTouchListeners();
-  }
+  handleKeyDown(event) {
+    let direction = null;
 
-  attachKeyboardListeners() {
-    document.addEventListener('keydown', (event) => {
-      const direction = this.getDirectionFromKey(event.code);
-      if (direction) {
-        event.preventDefault();
-        this.handleInput(direction);
-      }
-    });
-  }
-
-  getDirectionFromKey(keyCode) {
-    switch (keyCode) {
+    switch (event.code) {
       case 'ArrowLeft':
       case 'KeyA':
-        return 'left';
+        direction = -1;
+        break;
       case 'ArrowRight':
       case 'KeyD':
-        return 'right';
+        direction = 1;
+        break;
       default:
-        return null;
+        return;
+    }
+
+    event.preventDefault();
+    this.processLaneChange(direction);
+  }
+
+  handleTouchStart(event) {
+    const touch = event.touches[0];
+    this.touchStartX = touch.clientX;
+    this.touchStartY = touch.clientY;
+  }
+
+  handleTouchEnd(event) {
+    if (this.touchStartX === null || this.touchStartY === null) {
+      this.touchStartX = null;
+      this.touchStartY = null;
+      return;
+    }
+
+    const touch = event.changedTouches[0];
+    const deltaX = touch.clientX - this.touchStartX;
+    const deltaY = touch.clientY - this.touchStartY;
+
+    this.touchStartX = null;
+    this.touchStartY = null;
+
+    // Only process horizontal swipes (ignore vertical movement)
+    if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) >= this.minSwipeDistance) {
+      const direction = deltaX > 0 ? 1 : -1;
+      this.processLaneChange(direction);
     }
   }
 
-  attachTouchListeners() {
-    document.addEventListener('touchstart', (event) => {
-      const touch = event.touches[0];
-      this.touchStartX = touch.clientX;
-      this.touchStartY = touch.clientY;
-    }, { passive: true });
-
-    document.addEventListener('touchmove', (event) => {
-      if (this.touchStartX === null) {
-        return;
-      }
-      const touch = event.touches[0];
-      const deltaX = touch.clientX - this.touchStartX;
-      const deltaY = touch.clientY - this.touchStartY;
-
-      // Only process horizontal swipes (ignore vertical movement)
-      if (Math.abs(deltaX) > Math.abs(deltaY)) {
-        if (deltaX > this.minSwipeDistance) {
-          this.handleInput('right');
-          this.touchStartX = null;
-        } else if (deltaX < -this.minSwipeDistance) {
-          this.handleInput('left');
-          this.touchStartX = null;
-        }
-      }
-    }, { passive: true });
-
-    document.addEventListener('touchend', () => {
-      this.touchStartX = null;
-      this.touchStartY = null;
-    }, { passive: true });
-  }
-
-  handleInput(direction) {
+  processLaneChange(direction) {
     const now = Date.now();
     if (now - this.lastInputTime < this.debounceDelay) {
       return;
     }
     this.lastInputTime = now;
-    this.lastDirection = direction;
-    if (this.callback) {
-      this.callback(direction);
+
+    const newLane = this.currentLane + direction;
+    if (this.laneChangeCallback) {
+      this.laneChangeCallback(newLane);
     }
   }
 
-  getLastInput() {
-    return this.lastDirection;
+  onLaneChange(callback) {
+    if (typeof callback !== 'function') {
+      throw new Error('Callback must be a function');
+    }
+    this.laneChangeCallback = callback;
+  }
+
+  attachListeners() {
+    document.addEventListener('keydown', (event) => this.handleKeyDown(event));
+    document.addEventListener('touchstart', (event) => this.handleTouchStart(event), { passive: true });
+    document.addEventListener('touchend', (event) => this.handleTouchEnd(event), { passive: true });
   }
 }
 
-export default InputHandler;
+export default Input;
