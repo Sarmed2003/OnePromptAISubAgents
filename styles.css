@@ -25,16 +25,19 @@
   box-sizing: border-box;
 }
 
-/* Body Styling with Dark Background */
+/* Body Styling with Dark Background - 100vh, no margins */
 body {
   font-family: var(--font-family-base);
   background-color: var(--dark-bg);
   color: var(--text-primary);
-  min-height: 100vh;
+  height: 100vh;
+  width: 100vw;
+  margin: 0;
+  padding: 0;
   display: flex;
   justify-content: center;
   align-items: center;
-  padding: 1rem;
+  overflow: hidden;
   transition: var(--transition-smooth);
 }
 
@@ -48,22 +51,25 @@ body {
   height: 100%;
 }
 
-/* Canvas Styling - Centered and Focused */
+/* Canvas Styling - Centered, Black Background, Border, Responsive */
 canvas {
   display: block;
-  max-width: 100%;
-  max-height: 100vh;
-  border: 2px solid rgba(255, 255, 255, 0.1);
+  width: 800px;
+  height: 600px;
+  max-width: 95vw;
+  max-height: 95vh;
+  aspect-ratio: 16 / 9;
+  border: 3px solid #ffffff;
   border-radius: 8px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
   transition: var(--transition-smooth);
-  background-color: #0a0a0a;
+  background-color: #000000;
 }
 
 /* Canvas Hover Effect */
 canvas:hover {
-  box-shadow: 0 12px 48px rgba(102, 126, 234, 0.2);
-  border-color: rgba(102, 126, 234, 0.3);
+  box-shadow: 0 12px 48px rgba(102, 126, 234, 0.3);
+  border-color: rgba(102, 126, 234, 0.5);
 }
 
 /* Player Styling */
@@ -93,30 +99,31 @@ canvas:hover {
   pointer-events: none;
 }
 
-/* UI Score Display - Top Left, Always Visible */
-.ui-score {
+/* Score Display - Top Left, White Text, Large Font */
+.score-display {
   position: fixed;
   top: 20px;
   left: 20px;
-  font-size: 24px;
+  font-size: 28px;
   font-weight: 700;
-  color: var(--text-secondary);
+  color: #ffffff;
   z-index: 100;
-  background-color: rgba(0, 0, 0, 0.5);
-  padding: 12px 20px;
+  background-color: rgba(0, 0, 0, 0.6);
+  padding: 14px 24px;
   border-radius: 8px;
-  border: 1px solid rgba(102, 126, 234, 0.3);
+  border: 2px solid rgba(102, 126, 234, 0.4);
   font-family: 'Courier New', monospace;
   letter-spacing: 2px;
   transition: var(--transition-smooth);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
-.ui-score:hover {
-  background-color: rgba(0, 0, 0, 0.7);
+.score-display:hover {
+  background-color: rgba(0, 0, 0, 0.8);
   border-color: rgba(102, 126, 234, 0.6);
 }
 
-/* Game Over Screen - Semi-transparent Dark Overlay */
+/* Game Over Screen - Full-screen Overlay, Semi-transparent Dark Background */
 .game-over-screen {
   position: fixed;
   top: 0;
@@ -138,63 +145,63 @@ canvas:hover {
   display: none;
 }
 
-/* Game Over Content */
+/* Game Over Content - Centered Text */
 .game-over-content {
   text-align: center;
   padding: 40px;
   border-radius: 12px;
-  background-color: rgba(0, 0, 0, 0.7);
-  border: 2px solid rgba(102, 126, 234, 0.4);
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  background-color: rgba(0, 0, 0, 0.8);
+  border: 2px solid rgba(102, 126, 234, 0.5);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
 }
 
 /* Game Over Heading */
 .game-over-screen h2 {
   font-size: 48px;
-  color: var(--text-secondary);
+  color: #ffffff;
   margin-bottom: 20px;
   font-weight: 700;
   letter-spacing: -0.02em;
-  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
 }
 
 /* Game Over Score Text */
 .game-over-screen p {
   font-size: 24px;
-  color: var(--text-secondary);
+  color: #ffffff;
   margin-bottom: 30px;
   font-weight: 500;
   letter-spacing: 0.5px;
 }
 
-/* Restart Button */
+/* Restart Button - Styled Button with Hover Effects */
 .restart-button {
   padding: 14px 40px;
   font-size: 18px;
   font-weight: 600;
-  color: var(--text-secondary);
+  color: #ffffff;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   border: none;
   border-radius: 8px;
   cursor: pointer;
   transition: var(--transition-smooth);
-  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
   letter-spacing: 0.5px;
   text-transform: uppercase;
 }
 
 .restart-button:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(102, 126, 234, 0.5);
+  box-shadow: 0 8px 25px rgba(102, 126, 234, 0.6);
 }
 
 .restart-button:active {
   transform: translateY(0);
-  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
 }
 
 .restart-button:focus {
-  outline: 2px solid rgba(102, 126, 234, 0.6);
+  outline: 2px solid rgba(102, 126, 234, 0.8);
   outline-offset: 2px;
 }
 
@@ -210,18 +217,16 @@ canvas:hover {
 
 /* Responsive Design - Tablet and Below */
 @media (max-width: 768px) {
-  body {
-    padding: 1.5rem;
-  }
-
   canvas {
+    width: 90vw;
+    height: auto;
     max-height: 80vh;
   }
 
-  .ui-score {
+  .score-display {
     top: 15px;
     left: 15px;
-    font-size: 20px;
+    font-size: 22px;
     padding: 10px 16px;
   }
 
@@ -241,19 +246,17 @@ canvas:hover {
 
 /* Responsive Design - Small Mobile Devices */
 @media (max-width: 480px) {
-  body {
-    padding: 1rem;
-  }
-
   canvas {
+    width: 95vw;
+    height: auto;
     max-height: 70vh;
-    border-width: 1px;
+    border-width: 2px;
   }
 
-  .ui-score {
+  .score-display {
     top: 10px;
     left: 10px;
-    font-size: 16px;
+    font-size: 18px;
     padding: 8px 12px;
     border-radius: 6px;
   }
@@ -288,12 +291,12 @@ canvas:hover {
   }
 
   canvas:hover {
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-    border-color: rgba(255, 255, 255, 0.1);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+    border-color: #ffffff;
   }
 
-  .ui-score:hover {
-    background-color: rgba(0, 0, 0, 0.5);
+  .score-display:hover {
+    background-color: rgba(0, 0, 0, 0.6);
   }
 
   .restart-button:hover {
@@ -315,6 +318,6 @@ canvas:hover {
   }
 
   canvas {
-    border-color: rgba(230, 230, 230, 0.15);
+    border-color: rgba(255, 255, 255, 0.8);
   }
 }
