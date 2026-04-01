@@ -3,27 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Temple Run</title>
-    <link rel="stylesheet" href="styles.css">
+    <title>Temple Run - Claude's Adventure</title>
 </head>
 <body>
-    <div id="gameContainer">
-        <canvas id="gameCanvas" width="800" height="600"></canvas>
-        <div id="gameOverScreen">
-            <div id="gameOverText">GAME OVER</div>
-            <div id="finalScore">Final Score: <span id="scoreValue">0</span></div>
-            <button id="restartButton">Restart Game</button>
-        </div>
-    </div>
+    <canvas id="gameCanvas"></canvas>
 
-    <script src="player.js"></script>
+    <script src="gameState.js"></script>
     <script src="lanes.js"></script>
+    <script src="player.js"></script>
     <script src="obstacles.js"></script>
     <script src="coins.js"></script>
     <script src="collision.js"></script>
-    <script src="renderer.js"></script>
     <script src="input.js"></script>
-    <script src="gameState.js"></script>
+    <script src="renderer.js"></script>
     <script src="ui.js"></script>
     <script src="main.js"></script>
 </body>
