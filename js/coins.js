@@ -1,66 +1,44 @@
-class Coin {
-  constructor(lane, speed) {
-    this.lane = lane;
-    this.speed = speed;
-    this.radius = 15;
-    this.x = lane * 100 + 50;
-    this.y = -30;
-  }
-
-  update() {
-    this.y += this.speed;
-  }
-
-  isOffScreen() {
-    return this.y > 650;
-  }
-
-  render(ctx) {
-    ctx.fillStyle = '#FFD700';
-    ctx.beginPath();
-    ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.strokeStyle = '#FFA500';
-    ctx.lineWidth = 2;
-    ctx.stroke();
-
-    ctx.fillStyle = '#000000';
-    ctx.font = 'bold 16px Arial';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('C', this.x, this.y);
-  }
-}
-
-class CoinManager {
+class Coins {
   constructor() {
     this.coins = [];
-    this.collected = 0;
-    this.spawnRate = 120;
-    this.frameCounter = 0;
+    this.spawnCounter = 0;
+    this.spawnRate = 5; // Spawn every 5 frames (~20% spawn rate at 60fps)
   }
 
-  spawn(lane) {
-    const speed = 3 + (this.gameTime || 0) / 5000;
-    const coin = new Coin(lane, speed);
+  spawn(lane, canvasWidth, canvasHeight) {
+    const coin = {
+      x: lane * (canvasWidth / 8) + (canvasWidth / 16),
+      y: 0,
+      radius: 10,
+      lane: lane
+    };
     this.coins.push(coin);
   }
 
-  update(gameTime) {
-    this.gameTime = gameTime;
-    this.frameCounter++;
-
-    if (this.frameCounter >= this.spawnRate) {
-      const randomLane = Math.floor(Math.random() * 8);
-      this.spawn(randomLane);
-      this.frameCounter = 0;
-    }
-
+  update(speed) {
+    // Move all coins down
     for (let i = this.coins.length - 1; i >= 0; i--) {
-      this.coins[i].update();
-      if (this.coins[i].isOffScreen()) {
+      this.coins[i].y += speed;
+      
+      // Remove coins that have gone off screen
+      if (this.coins[i].y - this.coins[i].radius > 650) {
         this.coins.splice(i, 1);
       }
+    }
+  }
+
+  draw(ctx) {
+    for (const coin of this.coins) {
+      // Draw yellow circle
+      ctx.fillStyle = '#FFD700';
+      ctx.beginPath();
+      ctx.arc(coin.x, coin.y, coin.radius, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Draw border to make it distinct
+      ctx.strokeStyle = '#FFA500';
+      ctx.lineWidth = 2;
+      ctx.stroke();
     }
   }
 
@@ -68,18 +46,11 @@ class CoinManager {
     return this.coins;
   }
 
-  render(ctx) {
-    for (const coin of this.coins) {
-      coin.render(ctx);
-    }
-  }
-
-  collectCoin(coinIndex) {
-    if (coinIndex >= 0 && coinIndex < this.coins.length) {
-      this.coins.splice(coinIndex, 1);
-      this.collected++;
+  removeCoin(index) {
+    if (index >= 0 && index < this.coins.length) {
+      this.coins.splice(index, 1);
     }
   }
 }
 
-export { Coin, CoinManager };
+export { Coins };
