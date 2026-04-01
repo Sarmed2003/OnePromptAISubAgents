@@ -1,40 +1,38 @@
 class Player {
-  constructor(lane = 1) {
-    if (![0, 1, 2].includes(lane)) {
+  constructor(startLane, canvasWidth, canvasHeight) {
+    if (![0, 1, 2].includes(startLane)) {
       throw new Error('Lane must be 0, 1, or 2');
     }
     
-    this.lane = lane;
+    this.lane = startLane;
+    this.canvasWidth = canvasWidth;
+    this.canvasHeight = canvasHeight;
     this.width = 40;
     this.height = 40;
-    this.speed = 5;
-    this.y = 550;
-    this.targetLane = lane;
+    this.radius = 20;
+    this.y = canvasHeight - 60;
+    this.targetLane = startLane;
     this.animationStartTime = null;
-    this.animationDuration = 200; // milliseconds
-    this.startX = this._getLaneX(lane);
+    this.animationDuration = 200;
+    this.startX = this._getLaneX(startLane);
     this.x = this.startX;
   }
 
   _getLaneX(lane) {
-    const lanePositions = {
-      0: 100,   // left
-      1: 400,   // center
-      2: 700    // right
-    };
-    return lanePositions[lane];
+    const laneWidth = this.canvasWidth / 3;
+    return (lane + 0.5) * laneWidth;
   }
 
-  moveTo(newLane) {
-    if (![0, 1, 2].includes(newLane)) {
+  setLane(laneIndex) {
+    if (![0, 1, 2].includes(laneIndex)) {
       throw new Error('Lane must be 0, 1, or 2');
     }
     
-    if (newLane === this.lane && this.animationStartTime === null) {
+    if (laneIndex === this.lane && this.animationStartTime === null) {
       return;
     }
     
-    this.targetLane = newLane;
+    this.targetLane = laneIndex;
     this.animationStartTime = Date.now();
     this.startX = this.x;
   }
@@ -66,25 +64,46 @@ class Player {
     };
   }
 
-  render(ctx) {
+  getCollisionBox() {
+    return {
+      x: this.x - this.radius,
+      y: this.y - this.radius,
+      width: this.width,
+      height: this.height
+    };
+  }
+
+  draw(ctx) {
     this._updateAnimation();
     
     // Draw player body (purple circle with radius 20)
     ctx.fillStyle = '#9932cc';
     ctx.beginPath();
-    ctx.arc(this.x, this.y, 20, 0, Math.PI * 2);
+    ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
     ctx.fill();
     
-    // Draw left eye
+    // Draw left eye white
     ctx.fillStyle = '#ffffff';
     ctx.beginPath();
     ctx.arc(this.x - 7, this.y - 5, 3.5, 0, Math.PI * 2);
     ctx.fill();
     
-    // Draw right eye
+    // Draw right eye white
     ctx.fillStyle = '#ffffff';
     ctx.beginPath();
     ctx.arc(this.x + 7, this.y - 5, 3.5, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Draw left pupil (black)
+    ctx.fillStyle = '#000000';
+    ctx.beginPath();
+    ctx.arc(this.x - 7, this.y - 5, 1.5, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Draw right pupil (black)
+    ctx.fillStyle = '#000000';
+    ctx.beginPath();
+    ctx.arc(this.x + 7, this.y - 5, 1.5, 0, Math.PI * 2);
     ctx.fill();
   }
 }
