@@ -18,6 +18,18 @@ class Game {
     this.animationFrameId = null;
     this.isRunning = false;
 
+    // Spawn timing
+    this.obstacleSpawnTimer = 0;
+    this.obstacleSpawnInterval = 750; // 0.75 seconds average (0.5-1s range)
+    this.coinSpawnTimer = 0;
+    this.coinSpawnInterval = 2500; // 2.5 seconds average (2-3s range)
+
+    // Game speed progression
+    this.baseGameSpeed = 200; // pixels per second
+    this.maxGameSpeed = 400; // pixels per second
+    this.speedIncreaseRate = 50; // pixels per second, per 10 seconds
+    this.currentGameSpeed = this.baseGameSpeed;
+
     // Initialize all managers
     this.gameState = new GameState();
     this.player = new Player(1, this.gameWidth, this.gameHeight);
@@ -27,6 +39,10 @@ class Game {
     this.renderer = new Renderer(this.ctx, this.gameWidth, this.gameHeight);
     this.inputHandler = new InputHandler();
     this.uiManager = new UIManager(this.gameWidth, this.gameHeight);
+
+    // Set initial game speed for managers
+    this.obstacleManager.gameSpeed = this.currentGameSpeed;
+    this.coinManager.gameSpeed = this.currentGameSpeed;
 
     // Event listeners
     this.setupEventListeners();
@@ -83,6 +99,9 @@ class Game {
     this.gameState.startGame();
     this.isRunning = true;
     this.lastFrameTime = Date.now();
+    this.obstacleSpawnTimer = 0;
+    this.coinSpawnTimer = 0;
+    this.currentGameSpeed = this.baseGameSpeed;
 
     // Hide UI elements that should be hidden during gameplay
     const startButton = document.getElementById('startButton');
@@ -103,18 +122,25 @@ class Game {
     const deltaTime = currentTime - this.lastFrameTime;
     this.lastFrameTime = currentTime;
 
-    // Update input
+    // Clamp delta time to prevent huge jumps (e.g., tab switch)
+    const clampedDeltaTime = Math.min(deltaTime, 50);
+
+    // Update game speed based on elapsed time
+    this.updateGameSpeed(clampedDeltaTime);
+
+    // Update input and player position
     this.updateInput();
 
-    // Update game entities
-    this.updateObstacles(deltaTime);
-    this.updateCoins(deltaTime);
+    // Spawn and update game entities
+    this.updateSpawning(clampedDeltaTime);
+    this.updateObstacles(clampedDeltaTime);
+    this.updateCoins(clampedDeltaTime);
 
     // Check collisions
     this.checkCollisions();
 
     // Update game state
-    this.updateGameState(deltaTime);
+    this.updateGameState(clampedDeltaTime);
 
     // Render
     this.render();
@@ -127,8 +153,42 @@ class Game {
     }
   };
 
+  updateGameSpeed(deltaTime) {
+    // Increase game speed over time
+    const elapsedSeconds = this.gameState.elapsedTime / 1000;
+    const speedIncrease = Math.floor(elapsedSeconds / 10) * this.speedIncreaseRate;
+    this.currentGameSpeed = Math.min(
+      this.baseGameSpeed + speedIncrease,
+      this.maxGameSpeed
+    );
+
+    // Update managers with current speed
+    this.obstacleManager.gameSpeed = this.currentGameSpeed;
+    this.coinManager.gameSpeed = this.currentGameSpeed;
+  }
+
+  updateSpawning(deltaTime) {
+    // Update obstacle spawn timer
+    this.obstacleSpawnTimer += deltaTime;
+    if (this.obstacleSpawnTimer >= this.obstacleSpawnInterval) {
+      this.obstacleManager.spawn();
+      // Add randomness: 0.5-1.0 seconds
+      this.obstacleSpawnInterval = 500 + Math.random() * 500;
+      this.obstacleSpawnTimer = 0;
+    }
+
+    // Update coin spawn timer
+    this.coinSpawnTimer += deltaTime;
+    if (this.coinSpawnTimer >= this.coinSpawnInterval) {
+      this.coinManager.spawn();
+      // Add randomness: 2-3 seconds
+      this.coinSpawnInterval = 2000 + Math.random() * 1000;
+      this.coinSpawnTimer = 0;
+    }
+  }
+
   updateInput() {
-    const moveDistance = 10; // Pixels per frame
+    const moveDistance = 15; // Pixels per frame
 
     if (this.inputHandler.isKeyPressed('ArrowLeft') || this.inputHandler.isKeyPressed('a')) {
       this.player.moveLeft(moveDistance, this.gameWidth);
@@ -139,9 +199,6 @@ class Game {
   }
 
   updateObstacles(deltaTime) {
-    // Spawn new obstacles
-    this.obstacleManager.spawn();
-
     // Move obstacles down
     this.obstacleManager.update(deltaTime);
 
@@ -150,9 +207,6 @@ class Game {
   }
 
   updateCoins(deltaTime) {
-    // Spawn new coins
-    this.coinManager.spawn();
-
     // Move coins down
     this.coinManager.update(deltaTime);
 
@@ -227,6 +281,11 @@ class Game {
     this.obstacleManager.reset();
     this.coinManager.reset();
     this.inputHandler.reset();
+
+    // Reset game speed
+    this.currentGameSpeed = this.baseGameSpeed;
+    this.obstacleSpawnTimer = 0;
+    this.coinSpawnTimer = 0;
 
     // Hide restart button
     const restartButton = document.getElementById('restartButton');
