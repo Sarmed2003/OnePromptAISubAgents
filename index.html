@@ -3,806 +3,280 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Temple Run - Claude's Adventure</title>
+    <title>3D Endless Runner - Babylon.js</title>
     <style>
-/* Modern CSS Styling for Game Page */
+        /* Dark theme modern CSS for 3D endless runner game */
+        
+        :root {
+            --dark-bg: #0a0e27;
+            --cyan-glow: #00ffff;
+            --purple-glow: #ff00ff;
+            --text-primary: #ffffff;
+            --text-secondary: #00ffff;
+            --font-stack: 'Segoe UI', 'Helvetica Neue', sans-serif;
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
 
-/* Root Variables for Consistent Theming */
-:root {
-  --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  --text-primary: #2d3748;
-  --text-secondary: #ffffff;
-  --font-family-base: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
-  --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  --dark-bg: #1a1a1a;
-  
-  /* Game Element Colors */
-  --player-color: #667eea;
-  --obstacle-color: #ef4444;
-  --coin-color: #fbbf24;
-  --lane-marker-color: rgba(255, 255, 255, 0.1);
-  --overlay-bg: rgba(0, 0, 0, 0.85);
-  --button-hover-color: #764ba2;
-}
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
 
-/* Reset and Base Styles */
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
+        body {
+            font-family: var(--font-stack);
+            background-color: var(--dark-bg);
+            color: var(--text-primary);
+            width: 100vw;
+            height: 100vh;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
 
-/* Body Styling with Dark Background - 100vh, no margins */
-body {
-  font-family: var(--font-family-base);
-  background-color: var(--dark-bg);
-  color: var(--text-primary);
-  height: 100vh;
-  width: 100vw;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  overflow: hidden;
-  transition: var(--transition-smooth);
-}
+        /* Canvas fills entire viewport */
+        #renderCanvas {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+            touch-action: none;
+        }
 
-/* Main Container for Game */
-.game-container {
-  position: relative;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  width: 100%;
-  height: 100%;
-}
+        /* HUD overlay container - top right corner */
+        #hud {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            pointer-events: none;
+        }
 
-/* Canvas Styling - Centered, Black Background, Border, Responsive */
-canvas {
-  display: block;
-  width: 800px;
-  height: 600px;
-  max-width: 95vw;
-  max-height: 95vh;
-  aspect-ratio: 16 / 9;
-  border: 3px solid #ffffff;
-  border-radius: 8px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
-  transition: var(--transition-smooth);
-  background-color: #000000;
-}
+        /* Score display - large bold font with glow */
+        #scoreDisplay {
+            font-size: 48px;
+            font-weight: 700;
+            color: var(--text-primary);
+            text-shadow: 0 0 10px var(--cyan-glow), 0 0 20px var(--cyan-glow), 0 0 30px var(--purple-glow);
+            background-color: rgba(10, 14, 39, 0.7);
+            padding: 15px 25px;
+            border-radius: 8px;
+            border: 2px solid var(--cyan-glow);
+            box-shadow: 0 0 15px rgba(0, 255, 255, 0.3), inset 0 0 15px rgba(0, 255, 255, 0.1);
+            font-family: 'Courier New', monospace;
+            letter-spacing: 2px;
+            transition: var(--transition);
+            min-width: 200px;
+            text-align: right;
+        }
 
-/* Canvas Hover Effect */
-canvas:hover {
-  box-shadow: 0 12px 48px rgba(102, 126, 234, 0.3);
-  border-color: rgba(102, 126, 234, 0.5);
-}
+        #scoreDisplay:hover {
+            box-shadow: 0 0 25px rgba(0, 255, 255, 0.5), inset 0 0 15px rgba(0, 255, 255, 0.2);
+            text-shadow: 0 0 15px var(--cyan-glow), 0 0 25px var(--cyan-glow), 0 0 35px var(--purple-glow);
+        }
 
-/* Player Styling */
-.player {
-  background-color: var(--player-color);
-  border-radius: 4px;
-  box-shadow: 0 0 8px rgba(102, 126, 234, 0.5);
-}
+        /* Speed display - smaller secondary text with cyan glow */
+        #speedDisplay {
+            font-size: 24px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-shadow: 0 0 8px var(--cyan-glow), 0 0 15px var(--purple-glow);
+            background-color: rgba(10, 14, 39, 0.7);
+            padding: 10px 20px;
+            border-radius: 6px;
+            border: 1px solid var(--cyan-glow);
+            box-shadow: 0 0 10px rgba(0, 255, 255, 0.2), inset 0 0 10px rgba(0, 255, 255, 0.05);
+            font-family: 'Courier New', monospace;
+            letter-spacing: 1px;
+            transition: var(--transition);
+            text-align: right;
+        }
 
-/* Obstacle Styling */
-.obstacle {
-  background-color: var(--obstacle-color);
-  border-radius: 4px;
-  box-shadow: 0 0 8px rgba(239, 68, 68, 0.5);
-}
+        #speedDisplay:hover {
+            box-shadow: 0 0 15px rgba(0, 255, 255, 0.4), inset 0 0 10px rgba(0, 255, 255, 0.1);
+            text-shadow: 0 0 12px var(--cyan-glow), 0 0 20px var(--purple-glow);
+        }
 
-/* Coin Styling */
-.coin {
-  background-color: var(--coin-color);
-  border-radius: 50%;
-  box-shadow: 0 0 12px rgba(251, 191, 36, 0.6);
-}
+        /* Game-over modal - centered with semi-transparent overlay */
+        #gameOverModal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            backdrop-filter: blur(5px);
+            animation: fadeIn 0.4s ease-out;
+        }
 
-/* Lane Markers - Optional Visual Guides */
-.lane-marker {
-  border-left: 1px solid var(--lane-marker-color);
-  pointer-events: none;
-}
+        #gameOverModal.visible {
+            display: flex;
+        }
 
-/* Score Display - Top Left, White Text, Large Font */
-.score-display {
-  position: fixed;
-  top: 20px;
-  left: 20px;
-  font-size: 28px;
-  font-weight: 700;
-  color: #ffffff;
-  z-index: 100;
-  background-color: rgba(0, 0, 0, 0.6);
-  padding: 14px 24px;
-  border-radius: 8px;
-  border: 2px solid rgba(102, 126, 234, 0.4);
-  font-family: 'Courier New', monospace;
-  letter-spacing: 2px;
-  transition: var(--transition-smooth);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-}
+        /* Game-over content box */
+        .game-over-content {
+            text-align: center;
+            padding: 50px 40px;
+            border-radius: 12px;
+            background-color: rgba(10, 14, 39, 0.95);
+            border: 3px solid var(--cyan-glow);
+            box-shadow: 0 0 30px rgba(0, 255, 255, 0.4), 0 0 60px rgba(255, 0, 255, 0.2), inset 0 0 20px rgba(0, 255, 255, 0.1);
+            max-width: 500px;
+            animation: slideUp 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
 
-.score-display:hover {
-  background-color: rgba(0, 0, 0, 0.8);
-  border-color: rgba(102, 126, 234, 0.6);
-}
+        .game-over-content h1 {
+            font-size: 56px;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 20px;
+            text-shadow: 0 0 15px var(--cyan-glow), 0 0 30px var(--purple-glow);
+            letter-spacing: 2px;
+        }
 
-/* Game Over Screen - Full-screen Overlay, Semi-transparent Dark Background */
-.game-over-screen {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: var(--overlay-bg);
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  z-index: 1000;
-  backdrop-filter: blur(4px);
-  animation: fadeIn 0.3s ease-in-out;
-}
+        .game-over-content p {
+            font-size: 20px;
+            color: var(--text-secondary);
+            margin-bottom: 10px;
+            text-shadow: 0 0 8px var(--cyan-glow);
+        }
 
-/* Game Over Screen Hidden State */
-.game-over-screen.hidden {
-  display: none;
-}
+        #finalScore {
+            font-size: 72px;
+            font-weight: 700;
+            color: var(--cyan-glow);
+            margin: 20px 0 30px 0;
+            font-family: 'Courier New', monospace;
+            text-shadow: 0 0 20px var(--cyan-glow), 0 0 40px var(--purple-glow);
+            letter-spacing: 3px;
+        }
 
-/* Game Over Content - Centered Text */
-.game-over-content {
-  text-align: center;
-  padding: 40px;
-  border-radius: 12px;
-  background-color: rgba(0, 0, 0, 0.8);
-  border: 2px solid rgba(102, 126, 234, 0.5);
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
-}
+        /* Restart button with gradient and hover effects */
+        .restart-btn {
+            margin-top: 20px;
+            padding: 16px 40px;
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--text-primary);
+            background: linear-gradient(135deg, var(--cyan-glow) 0%, var(--purple-glow) 100%);
+            border: 2px solid var(--cyan-glow);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: var(--transition);
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.3), 0 0 40px rgba(255, 0, 255, 0.2);
+            font-family: var(--font-stack);
+            letter-spacing: 1px;
+            pointer-events: auto;
+        }
 
-/* Game Over Heading */
-.game-over-screen h2 {
-  font-size: 48px;
-  color: #ffffff;
-  margin-bottom: 20px;
-  font-weight: 700;
-}
+        .restart-btn:hover {
+            transform: translateY(-3px) scale(1.05);
+            box-shadow: 0 0 30px rgba(0, 255, 255, 0.5), 0 0 60px rgba(255, 0, 255, 0.3);
+            text-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+        }
 
-/* Final Score Display */
-#finalScore {
-  font-size: 64px;
-  color: #fbbf24;
-  margin: 20px 0;
-  font-weight: 700;
-  font-family: 'Courier New', monospace;
-}
+        .restart-btn:active {
+            transform: translateY(-1px) scale(1.02);
+        }
 
-/* Restart Button */
-.restart-btn {
-  margin-top: 30px;
-  padding: 14px 32px;
-  font-size: 18px;
-  font-weight: 600;
-  color: #ffffff;
-  background: var(--primary-gradient);
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: var(--transition-smooth);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
-}
+        /* Animations */
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
 
-.restart-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
-  background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
-}
-
-.restart-btn:active {
-  transform: translateY(0);
-}
-
-/* Fade In Animation */
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
     </style>
 </head>
 <body>
-    <div class="game-container">
-        <canvas id="gameCanvas" width="800" height="600"></canvas>
-        <div id="scoreDisplay" class="score-display">Score: 0</div>
-        <div id="gameOverScreen" class="game-over-screen" style="display: none;">
-            <div class="game-over-content">
-                <h2>Game Over</h2>
-                <p>Final Score:</p>
-                <div id="finalScore">0</div>
-                <button class="restart-btn" onclick="window.restartGame()">Restart Game</button>
-            </div>
+    <!-- Babylon.js render canvas -->
+    <canvas id="renderCanvas"></canvas>
+
+    <!-- HUD overlay with score and speed displays -->
+    <div id="hud">
+        <div id="scoreDisplay">Score: 0</div>
+        <div id="speedDisplay">Speed: 0</div>
+    </div>
+
+    <!-- Game-over modal -->
+    <div id="gameOverModal">
+        <div class="game-over-content">
+            <h1>GAME OVER</h1>
+            <p>Final Score:</p>
+            <div id="finalScore">0</div>
+            <button class="restart-btn" onclick="window.restartGame()">RESTART GAME</button>
         </div>
     </div>
 
-    <!-- Load all game modules in correct dependency order -->
+    <!-- Load Babylon.js from CDN -->
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+
+    <!-- Task 2: Scene setup and camera/lighting (empty - to be filled by task-002) -->
     <script>
-class Player {
-  constructor() {
-    this.width = 40;
-    this.height = 40;
-    this.speed = 15;
-    this.currentLane = 1; // 0 = left, 1 = middle, 2 = right
-    this.updatePosition();
-  }
+        // Task 2: Scene initialization, camera, lighting
+    </script>
 
-  updatePosition() {
-    const laneWidth = 800 / 3;
-    this.x = this.currentLane * laneWidth + (laneWidth - this.width) / 2;
-    this.y = 550; // Near bottom of screen
-  }
-
-  moveLeft() {
-    if (this.currentLane > 0) {
-      this.currentLane--;
-      this.updatePosition();
-    }
-  }
-
-  moveRight() {
-    if (this.currentLane < 2) {
-      this.currentLane++;
-      this.updatePosition();
-    }
-  }
-
-  update() {
-    // Player position is controlled by movement input
-  }
-
-  draw(ctx) {
-    ctx.fillStyle = '#667eea';
-    ctx.fillRect(this.x, this.y, this.width, this.height);
-    ctx.strokeStyle = '#ffffff';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(this.x, this.y, this.width, this.height);
-  }
-}
-</script>
+    <!-- Task 3: Player 3D model and controller (empty - to be filled by task-003) -->
     <script>
-class Obstacle {
-  constructor() {
-    this.width = 60;
-    this.height = 40;
-    this.speed = 6;
-    this.lane = Math.floor(Math.random() * 3);
-    this.setPosition();
-  }
+        // Task 3: Player 3D model creation and input handling
+    </script>
 
-  setPosition() {
-    const laneWidth = 800 / 3;
-    this.x = this.lane * laneWidth + (laneWidth - this.width) / 2;
-    this.y = -this.height;
-  }
-
-  update() {
-    this.y += this.speed;
-  }
-
-  draw(ctx) {
-    ctx.fillStyle = '#ef4444';
-    ctx.fillRect(this.x, this.y, this.width, this.height);
-    ctx.strokeStyle = '#ffffff';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(this.x, this.y, this.width, this.height);
-  }
-}
-</script>
+    <!-- Task 4: Obstacles and collectibles (empty - to be filled by task-004) -->
     <script>
-class Coin {
-  constructor(x, y) {
-    this.x = x;
-    this.y = y;
-    this.width = 20;
-    this.height = 20;
-    this.speed = 4;
-    this.collected = false;
-  }
+        // Task 4: Obstacle spawning and collectible items
+    </script>
 
-  update() {
-    this.y += this.speed;
-  }
-
-  isOffScreen() {
-    return this.y > 600;
-  }
-
-  isCollected() {
-    return this.collected;
-  }
-
-  setCollected() {
-    this.collected = true;
-  }
-
-  draw(ctx) {
-    ctx.fillStyle = '#FFD700';
-    ctx.beginPath();
-    ctx.arc(this.x + this.width / 2, this.y + this.height / 2, this.width / 2, 0, Math.PI * 2);
-    ctx.fill();
-  }
-}
-
-window.Coin = Coin;
-window.coins = [];
-
-let spawnCounter = 0;
-let lastLane = -1;
-
-function spawnCoin() {
-  spawnCounter++;
-
-  if (spawnCounter >= 120) {
-    spawnCounter = 0;
-
-    let lane;
-    do {
-      lane = Math.floor(Math.random() * 3);
-    } while (lane === lastLane && window.coins.length > 0);
-    lastLane = lane;
-
-    const laneWidth = 800 / 3;
-    const x = lane * laneWidth + (laneWidth - 20) / 2;
-    const y = -20;
-
-    const coin = new Coin(x, y);
-    window.coins.push(coin);
-  }
-}
-
-window.spawnCoin = spawnCoin;
-
-window.updateCoins = function() {
-  for (let i = window.coins.length - 1; i >= 0; i--) {
-    window.coins[i].update();
-
-    if (window.coins[i].isOffScreen() || window.coins[i].isCollected()) {
-      window.coins.splice(i, 1);
-    }
-  }
-};
-
-window.drawCoins = function(ctx) {
-  for (let coin of window.coins) {
-    coin.draw(ctx);
-  }
-};
-</script>
+    <!-- Task 5: Collision detection (empty - to be filled by task-005) -->
     <script>
-/**
- * Collision Detection Module
- * Handles AABB collision detection for player-obstacle and player-coin interactions
- */
+        // Task 5: Collision detection system
+    </script>
 
-/**
- * Checks if player collides with any obstacle using AABB collision detection
- * @param {Object} player - Player object with x, y, width, height properties
- * @param {Array} obstacles - Array of obstacle objects with x, y, width, height properties
- * @returns {boolean} True if player overlaps any obstacle, false otherwise
- */
-function checkPlayerObstacleCollision(player, obstacles) {
-  if (!player || !obstacles || obstacles.length === 0) {
-    return false;
-  }
-
-  for (let i = 0; i < obstacles.length; i++) {
-    const obstacle = obstacles[i];
-    if (isAABBOverlapping(player, obstacle)) {
-      return true;
-    }
-  }
-
-  return false;
-}
-
-/**
- * Removes obstacles that have moved offscreen (below canvas)
- * @param {Array} obstacles - Array of obstacle objects with y and height properties
- * @returns {Array} Filtered array with offscreen obstacles removed
- */
-function removeCollided(obstacles) {
-  if (!obstacles || obstacles.length === 0) {
-    return obstacles;
-  }
-
-  // Assuming canvas height is 600 (standard for this game)
-  // Remove obstacles that have completely passed the bottom of the screen
-  const CANVAS_HEIGHT = 600;
-  return obstacles.filter(obstacle => obstacle.y < CANVAS_HEIGHT);
-}
-
-/**
- * Checks which coins the player has collected
- * Uses a more generous hitbox for coins (easier to collect than obstacles to hit)
- * @param {Object} player - Player object with x, y, width, height properties
- * @param {Array} coins - Array of coin objects with x, y, width, height properties
- * @returns {Array} Array of collected coin indices
- */
-function checkPlayerCoinCollision(player, coins) {
-  if (!player || !coins || coins.length === 0) {
-    return [];
-  }
-
-  const collectedIndices = [];
-
-  for (let i = 0; i < coins.length; i++) {
-    const coin = coins[i];
-    // Coins have a smaller, centered hitbox that's more forgiving
-    // Create an expanded hitbox around the coin for easier collection
-    const coinHitbox = {
-      x: coin.x + (coin.width * 0.1),
-      y: coin.y + (coin.height * 0.1),
-      width: coin.width * 0.8,
-      height: coin.height * 0.8
-    };
-
-    if (isAABBOverlapping(player, coinHitbox)) {
-      collectedIndices.push(i);
-    }
-  }
-
-  return collectedIndices;
-}
-
-/**
- * Removes collected coins from the array and returns the count
- * @param {Array} coins - Array of coin objects
- * @param {Array} collectedIndices - Array of indices of collected coins
- * @returns {Object} Object with updated coins array and count of removed coins
- */
-function removeCoinCollected(coins, collectedIndices) {
-  if (!coins || !collectedIndices || collectedIndices.length === 0) {
-    return {
-      coins: coins || [],
-      count: 0
-    };
-  }
-
-  // Sort indices in descending order to remove from end first
-  const sortedIndices = [...collectedIndices].sort((a, b) => b - a);
-  const count = sortedIndices.length;
-
-  // Remove duplicates and filter out of bounds indices
-  const uniqueIndices = [...new Set(sortedIndices)].filter(
-    index => index >= 0 && index < coins.length
-  );
-
-  // Remove coins in reverse order to maintain correct indices
-  let updatedCoins = [...coins];
-  for (const index of uniqueIndices) {
-    updatedCoins.splice(index, 1);
-  }
-
-  return {
-    coins: updatedCoins,
-    count: uniqueIndices.length
-  };
-}
-
-/**
- * Helper function: Checks if two AABB rectangles overlap
- * Uses standard AABB collision formula
- * @param {Object} rect1 - Rectangle with x, y, width, height
- * @param {Object} rect2 - Rectangle with x, y, width, height
- * @returns {boolean} True if rectangles overlap, false otherwise
- */
-function isAABBOverlapping(rect1, rect2) {
-  return (
-    rect1.x < rect2.x + rect2.width &&
-    rect1.x + rect1.width > rect2.x &&
-    rect1.y < rect2.y + rect2.height &&
-    rect1.y + rect1.height > rect2.y
-  );
-}
-</script>
+    <!-- Task 6: Game loop and state management (empty - to be filled by task-006) -->
     <script>
-/**
- * Renderer Module
- * Handles all canvas drawing operations
- */
+        // Task 6: Main game loop and state management
+    </script>
 
-function render(ctx, player, obstacles, coins, score) {
-  if (!ctx || !player) {
-    return;
-  }
-
-  // Clear canvas
-  ctx.fillStyle = '#000000';
-  ctx.fillRect(0, 0, 800, 600);
-
-  // Draw lane dividers
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
-  ctx.lineWidth = 2;
-  ctx.setLineDash([10, 10]);
-  
-  // Vertical lines dividing lanes
-  ctx.beginPath();
-  ctx.moveTo(800 / 3, 0);
-  ctx.lineTo(800 / 3, 600);
-  ctx.stroke();
-  
-  ctx.beginPath();
-  ctx.moveTo((800 / 3) * 2, 0);
-  ctx.lineTo((800 / 3) * 2, 600);
-  ctx.stroke();
-  
-  ctx.setLineDash([]);
-
-  // Draw all obstacles
-  if (obstacles && obstacles.length > 0) {
-    for (let obstacle of obstacles) {
-      obstacle.draw(ctx);
-    }
-  }
-
-  // Draw all coins
-  if (coins && coins.length > 0) {
-    for (let coin of coins) {
-      coin.draw(ctx);
-    }
-  }
-
-  // Draw player
-  player.draw(ctx);
-}
-</script>
+    <!-- Task 7: UI and HUD updates (empty - to be filled by task-007) -->
     <script>
-// Input handler for player movement
-// Manages keyboard input with debouncing to prevent spam
+        // Task 7: UI updates, score display, HUD management
+    </script>
 
-const INPUT_DEBOUNCE_MS = 100;
-let lastInputTime = 0;
-let keysPressed = {};
-
-/**
- * Handles keyboard input for player movement.
- * Listens for ArrowLeft, ArrowRight, A, and D keys.
- * Debounces input to prevent rapid lane switching.
- * Prevents default page scroll behavior for arrow keys.
- */
-function handleKeyDown(event) {
-  // Check if event is a keyboard event with a key property
-  if (!event || !event.key) {
-    return;
-  }
-
-  const key = event.key.toLowerCase();
-  let direction = null;
-
-  // Determine direction based on key pressed
-  if (key === 'arrowleft' || key === 'a') {
-    direction = -1; // Move left
-    event.preventDefault();
-  } else if (key === 'arrowright' || key === 'd') {
-    direction = 1; // Move right
-    event.preventDefault();
-  }
-
-  // If no relevant key was pressed, return early
-  if (direction === null) {
-    return;
-  }
-
-  // Store key state
-  keysPressed[key] = true;
-}
-
-function handleKeyUp(event) {
-  if (!event || !event.key) {
-    return;
-  }
-
-  const key = event.key.toLowerCase();
-  keysPressed[key] = false;
-}
-
-/**
- * Update function called each frame to process input
- * Applies debouncing and updates player position
- */
-function handleInputUpdate() {
-  if (!window.player) {
-    return;
-  }
-
-  const now = Date.now();
-  const canMove = (now - lastInputTime) >= INPUT_DEBOUNCE_MS;
-
-  // Check for left movement
-  if ((keysPressed['arrowleft'] || keysPressed['a']) && canMove) {
-    window.player.moveLeft();
-    lastInputTime = now;
-  }
-
-  // Check for right movement
-  if ((keysPressed['arrowright'] || keysPressed['d']) && canMove) {
-    window.player.moveRight();
-    lastInputTime = now;
-  }
-}
-
-// Attach event listeners when DOM is ready
-if (typeof window !== 'undefined') {
-  window.addEventListener('keydown', handleKeyDown);
-  window.addEventListener('keyup', handleKeyUp);
-}
-</script>
+    <!-- Task 8: Audio system (empty - to be filled by task-008) -->
     <script>
-/**
- * UI Module
- * Handles UI updates and display
- */
+        // Task 8: Audio effects and background music
+    </script>
 
-function updateScoreDisplay() {
-  const scoreDisplay = document.getElementById('scoreDisplay');
-  if (scoreDisplay) {
-    scoreDisplay.textContent = 'Score: ' + window.score;
-  }
-}
-</script>
+    <!-- Task 9: Visual effects and particles (empty - to be filled by task-009) -->
     <script>
-// Game state initialization
-window.player = null;
-window.obstacles = [];
-window.coins = [];
-window.score = 0;
-window.gameRunning = true;
-window.spawnTimer = 0;
-window.obstacleSpawnInterval = 120; // frames between obstacle spawns
-window.coinSpawnInterval = 90; // frames between coin spawns
-window.gameLoopId = null;
+        // Task 9: Particle effects and visual enhancements
+    </script>
 
-// Initialize game state
-function initializeGameState() {
-  window.player = new Player();
-  window.obstacles = [];
-  window.coins = [];
-  window.score = 0;
-  window.gameRunning = true;
-  window.spawnTimer = 0;
-}
-
-// Update score display in UI
-function addScore(points) {
-  window.score += points;
-  updateScoreDisplay();
-}
-
-// Main game loop - runs at ~60fps via requestAnimationFrame
-window.gameLoop = function() {
-  if (!window.gameRunning) {
-    return;
-  }
-
-  // Step 1: Handle input
-  handleInputUpdate();
-
-  // Step 2: Update all entities
-  window.player.update();
-  
-  for (let i = 0; i < window.obstacles.length; i++) {
-    window.obstacles[i].update();
-  }
-  
-  window.updateCoins();
-
-  // Step 3: Spawn obstacles and coins (increment timers)
-  window.spawnTimer++;
-  
-  if (window.spawnTimer >= window.obstacleSpawnInterval) {
-    const obstacle = new Obstacle();
-    window.obstacles.push(obstacle);
-    window.spawnTimer = 0;
-  }
-  
-  // Spawn coins
-  window.spawnCoin();
-
-  // Step 4: Collision checks
-  // Check player-obstacle collisions
-  if (checkPlayerObstacleCollision(window.player, window.obstacles)) {
-    window.endGame();
-    return;
-  }
-  
-  // Check player-coin collisions
-  const collectedIndices = checkPlayerCoinCollision(window.player, window.coins);
-  if (collectedIndices.length > 0) {
-    const result = removeCoinCollected(window.coins, collectedIndices);
-    window.coins = result.coins;
-    addScore(result.count);
-  }
-
-  // Step 5: Render
-  render(window.ctx, window.player, window.obstacles, window.coins, window.score);
-
-  // Step 6: Remove offscreen entities
-  // Remove offscreen obstacles
-  for (let i = window.obstacles.length - 1; i >= 0; i--) {
-    if (window.obstacles[i].y > window.canvas.height) {
-      window.obstacles.splice(i, 1);
-    }
-  }
-  
-  // Coins are handled by coins.js update
-
-  // Schedule next frame
-  window.gameLoopId = requestAnimationFrame(window.gameLoop);
-};
-
-// Restart the game - reset state and resume loop
-window.restartGame = function() {
-  // Cancel any pending animation frame
-  if (window.gameLoopId) {
-    cancelAnimationFrame(window.gameLoopId);
-    window.gameLoopId = null;
-  }
-
-  // Reset all game state
-  initializeGameState();
-  
-  // Hide game-over screen if it exists
-  const gameOverScreen = document.getElementById('gameOverScreen');
-  if (gameOverScreen) {
-    gameOverScreen.style.display = 'none';
-  }
-  
-  // Update score display
-  updateScoreDisplay();
-  
-  // Restart the game loop
-  window.gameLoopId = requestAnimationFrame(window.gameLoop);
-};
-
-// End the game - stop loop and show game-over screen
-window.endGame = function() {
-  window.gameRunning = false;
-  
-  // Cancel the animation frame
-  if (window.gameLoopId) {
-    cancelAnimationFrame(window.gameLoopId);
-    window.gameLoopId = null;
-  }
-  
-  // Display game-over screen with final score
-  const gameOverScreen = document.getElementById('gameOverScreen');
-  if (gameOverScreen) {
-    gameOverScreen.style.display = 'flex';
-    const finalScoreElement = document.getElementById('finalScore');
-    if (finalScoreElement) {
-      finalScoreElement.textContent = window.score;
-    }
-  }
-};
-</script>
-    
-    <!-- Initialize game on page load -->
+    <!-- Task 10: Game initialization and entry point (empty - to be filled by task-010) -->
     <script>
-        window.addEventListener('DOMContentLoaded', function() {
-            // Get canvas and set it on window for game.js to access
-            window.canvas = document.getElementById('gameCanvas');
-            window.ctx = window.canvas.getContext('2d');
-            
-            // Initialize game state
-            initializeGameState();
-            
-            // Start the game loop
-            window.gameLoopId = requestAnimationFrame(window.gameLoop);
-        });
+        // Task 10: Game initialization and startup
     </script>
 </body>
 </html>
