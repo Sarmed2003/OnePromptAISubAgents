@@ -55,5 +55,3 @@ const lanes = {
     return true;
   }
 };
-
-export { lanes };

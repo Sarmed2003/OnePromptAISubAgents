@@ -4,7 +4,7 @@
  * @param {Array} obstacles - Array of obstacle objects with {x, y, width, height}
  * @returns {number} Index of first colliding obstacle or -1 if no collision
  */
-export function checkPlayerObstacle(playerBox, obstacles) {
+function checkPlayerObstacle(playerBox, obstacles) {
   if (!playerBox || !obstacles || obstacles.length === 0) {
     return -1;
   }
@@ -25,7 +25,7 @@ export function checkPlayerObstacle(playerBox, obstacles) {
  * @param {Array} coins - Array of coin objects with {x, y, radius}
  * @returns {number} Index of first colliding coin or -1 if no collision
  */
-export function checkPlayerCoin(playerBox, coins) {
+function checkPlayerCoin(playerBox, coins) {
   if (!playerBox || !coins || coins.length === 0) {
     return -1;
   }

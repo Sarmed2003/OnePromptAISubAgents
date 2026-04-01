@@ -27,5 +27,3 @@ const gameState = {
     this.coinsCollected = 0;
   }
 };
-
-export { gameState };

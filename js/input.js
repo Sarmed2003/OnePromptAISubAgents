@@ -82,5 +82,3 @@ class Input {
     document.addEventListener('touchend', (event) => this.handleTouchEnd(event), { passive: true });
   }
 }
-
-export default Input;

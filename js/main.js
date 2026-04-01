@@ -31,18 +31,13 @@ class Game {
     this.currentGameSpeed = this.baseGameSpeed;
 
     // Initialize all managers
-    this.gameState = new GameState();
+    this.gameState = gameState;
     this.player = new Player(1, this.gameWidth, this.gameHeight);
-    this.obstacleManager = new ObstacleManager(this.gameWidth, this.gameHeight);
-    this.coinManager = new CoinManager(this.gameWidth, this.gameHeight);
-    this.collisionDetector = new CollisionDetector();
+    this.obstacleManager = new Obstacles();
+    this.coinManager = new Coins();
     this.renderer = new Renderer(this.ctx, this.gameWidth, this.gameHeight);
-    this.inputHandler = new InputHandler();
-    this.uiManager = new UIManager(this.gameWidth, this.gameHeight);
-
-    // Set initial game speed for managers
-    this.obstacleManager.gameSpeed = this.currentGameSpeed;
-    this.coinManager.gameSpeed = this.currentGameSpeed;
+    this.inputHandler = new Input();
+    this.uiManager = new UI(this.gameWidth, this.gameHeight);
 
     // Event listeners
     this.setupEventListeners();
@@ -73,14 +68,6 @@ class Game {
     this.gameHeight = this.canvas.height;
 
     // Update manager dimensions if they exist
-    if (this.obstacleManager) {
-      this.obstacleManager.gameWidth = this.gameWidth;
-      this.obstacleManager.gameHeight = this.gameHeight;
-    }
-    if (this.coinManager) {
-      this.coinManager.gameWidth = this.gameWidth;
-      this.coinManager.gameHeight = this.gameHeight;
-    }
     if (this.renderer) {
       this.renderer.gameWidth = this.gameWidth;
       this.renderer.gameHeight = this.gameHeight;
@@ -92,11 +79,10 @@ class Game {
   }
 
   startGame() {
-    if (this.gameState.isGameOver || this.gameState.isGameActive) {
+    if (this.isRunning) {
       return; // Prevent multiple starts
     }
 
-    this.gameState.startGame();
     this.isRunning = true;
     this.lastFrameTime = Date.now();
     this.obstacleSpawnTimer = 0;
@@ -118,191 +104,103 @@ class Game {
       return;
     }
 
-    // Calculate delta time for frame-rate independent updates
-    const deltaTime = currentTime - this.lastFrameTime;
+    // Calculate delta time for frame-rate independence
+    const deltaTime = (currentTime - this.lastFrameTime) / 1000; // Convert to seconds
     this.lastFrameTime = currentTime;
 
-    // Clamp delta time to prevent huge jumps (e.g., tab switch)
-    const clampedDeltaTime = Math.min(deltaTime, 50);
-
-    // Update game speed based on elapsed time
-    this.updateGameSpeed(clampedDeltaTime);
-
-    // Update input and player position
-    this.updateInput();
-
-    // Spawn and update game entities
-    this.updateSpawning(clampedDeltaTime);
-    this.updateObstacles(clampedDeltaTime);
-    this.updateCoins(clampedDeltaTime);
-
-    // Check collisions
-    this.checkCollisions();
-
-    // Update game state
-    this.updateGameState(clampedDeltaTime);
+    // Update game logic
+    this.update(deltaTime);
 
     // Render
     this.render();
 
-    // Continue loop
-    if (this.gameState.isGameActive) {
-      this.animationFrameId = requestAnimationFrame(this.gameLoop);
-    } else if (this.gameState.isGameOver) {
-      this.handleGameOver();
-    }
+    // Request next frame
+    this.animationFrameId = requestAnimationFrame(this.gameLoop);
   };
 
-  updateGameSpeed(deltaTime) {
-    // Increase game speed over time
-    const elapsedSeconds = this.gameState.elapsedTime / 1000;
-    const speedIncrease = Math.floor(elapsedSeconds / 10) * this.speedIncreaseRate;
+  update(deltaTime) {
+    // Update game speed based on time
+    const elapsedSeconds = (Date.now() - this.lastFrameTime) / 1000;
     this.currentGameSpeed = Math.min(
-      this.baseGameSpeed + speedIncrease,
+      this.baseGameSpeed + (elapsedSeconds / 10) * this.speedIncreaseRate,
       this.maxGameSpeed
     );
 
-    // Update managers with current speed
-    this.obstacleManager.gameSpeed = this.currentGameSpeed;
-    this.coinManager.gameSpeed = this.currentGameSpeed;
-  }
+    // Convert speed to pixels per frame
+    const speedPerFrame = this.currentGameSpeed * deltaTime;
 
-  updateSpawning(deltaTime) {
-    // Update obstacle spawn timer
-    this.obstacleSpawnTimer += deltaTime;
+    // Update player
+    this.player.update(this.gameWidth, this.gameHeight);
+
+    // Update obstacles
+    this.obstacleManager.update(speedPerFrame);
+
+    // Update coins
+    this.coinManager.update(speedPerFrame);
+
+    // Spawn obstacles
+    this.obstacleSpawnTimer += deltaTime * 1000;
     if (this.obstacleSpawnTimer >= this.obstacleSpawnInterval) {
-      this.obstacleManager.spawn();
-      // Add randomness: 0.5-1.0 seconds
-      this.obstacleSpawnInterval = 500 + Math.random() * 500;
+      const randomLane = Math.floor(Math.random() * 3);
+      this.obstacleManager.spawn(randomLane, this.gameWidth, this.gameHeight);
       this.obstacleSpawnTimer = 0;
     }
 
-    // Update coin spawn timer
-    this.coinSpawnTimer += deltaTime;
+    // Spawn coins
+    this.coinSpawnTimer += deltaTime * 1000;
     if (this.coinSpawnTimer >= this.coinSpawnInterval) {
-      this.coinManager.spawn();
-      // Add randomness: 2-3 seconds
-      this.coinSpawnInterval = 2000 + Math.random() * 1000;
+      const randomLane = Math.floor(Math.random() * 3);
+      this.coinManager.spawn(randomLane, this.gameWidth, this.gameHeight);
       this.coinSpawnTimer = 0;
     }
-  }
 
-  updateInput() {
-    const moveDistance = 15; // Pixels per frame
-
-    if (this.inputHandler.isKeyPressed('ArrowLeft') || this.inputHandler.isKeyPressed('a')) {
-      this.player.moveLeft(moveDistance, this.gameWidth);
-    }
-    if (this.inputHandler.isKeyPressed('ArrowRight') || this.inputHandler.isKeyPressed('d')) {
-      this.player.moveRight(moveDistance, this.gameWidth);
-    }
-  }
-
-  updateObstacles(deltaTime) {
-    // Move obstacles down
-    this.obstacleManager.update(deltaTime);
-
-    // Remove obstacles that are off-screen
-    this.obstacleManager.removeOffScreen();
-  }
-
-  updateCoins(deltaTime) {
-    // Move coins down
-    this.coinManager.update(deltaTime);
-
-    // Remove coins that are off-screen
-    this.coinManager.removeOffScreen();
-  }
-
-  checkCollisions() {
-    // Check player-obstacle collisions
-    for (const obstacle of this.obstacleManager.obstacles) {
-      if (this.collisionDetector.checkCollision(this.player, obstacle)) {
-        this.gameState.endGame();
-        this.isRunning = false;
-        return; // Stop further collision checks
-      }
+    // Check collisions
+    const playerBox = this.player.getBoundingBox();
+    const obstacleIndex = checkPlayerObstacle(playerBox, this.obstacleManager.getObstacles());
+    if (obstacleIndex !== -1) {
+      this.gameOver();
     }
 
-    // Check player-coin collisions
-    const coinsToRemove = [];
-    for (let i = 0; i < this.coinManager.coins.length; i++) {
-      const coin = this.coinManager.coins[i];
-      if (this.collisionDetector.checkCollision(this.player, coin)) {
-        this.gameState.addScore(coin.value);
-        coinsToRemove.push(i);
-      }
-    }
-
-    // Remove collected coins (iterate backwards to avoid index issues)
-    for (let i = coinsToRemove.length - 1; i >= 0; i--) {
-      this.coinManager.coins.splice(coinsToRemove[i], 1);
-    }
-  }
-
-  updateGameState(deltaTime) {
-    if (this.gameState.isGameActive) {
-      this.gameState.incrementTime(deltaTime);
+    const coinIndex = checkPlayerCoin(playerBox, this.coinManager.getCoins());
+    if (coinIndex !== -1) {
+      this.gameState.addCoin();
+      this.gameState.addScore(10);
+      this.coinManager.removeCoin(coinIndex);
     }
   }
 
   render() {
     // Clear canvas
-    this.renderer.clear();
+    this.ctx.fillStyle = '#87CEEB';
+    this.ctx.fillRect(0, 0, this.gameWidth, this.gameHeight);
 
-    // Draw game elements
-    this.renderer.drawBackground();
+    // Render all game objects
     this.renderer.drawPlayer(this.player);
-    this.renderer.drawObstacles(this.obstacleManager.obstacles);
-    this.renderer.drawCoins(this.coinManager.coins);
-
-    // Draw UI
-    this.uiManager.drawScore(this.gameState.score);
-    this.uiManager.drawTime(this.gameState.elapsedTime);
+    this.renderer.drawObstacles(this.obstacleManager);
+    this.renderer.drawCoins(this.coinManager);
+    this.renderer.drawUI(this.gameState);
   }
 
-  handleGameOver() {
-    // Draw game-over screen
-    this.renderer.clear();
-    this.renderer.drawBackground();
-    this.uiManager.drawGameOverScreen(this.gameState.score);
-
-    // Show restart button
-    const restartButton = document.getElementById('restartButton');
-    if (restartButton) {
-      restartButton.style.display = 'block';
-    }
+  gameOver() {
+    this.isRunning = false;
+    cancelAnimationFrame(this.animationFrameId);
+    this.uiManager.showGameOver(this.gameState.score);
   }
 
   restart() {
-    // Reset all managers
-    this.gameState.reset();
+    this.gameState.resetGame();
+    this.obstacleManager.obstacles = [];
+    this.coinManager.coins = [];
     this.player.reset();
-    this.obstacleManager.reset();
-    this.coinManager.reset();
-    this.inputHandler.reset();
-
-    // Reset game speed
-    this.currentGameSpeed = this.baseGameSpeed;
-    this.obstacleSpawnTimer = 0;
-    this.coinSpawnTimer = 0;
-
-    // Hide restart button
-    const restartButton = document.getElementById('restartButton');
-    if (restartButton) {
-      restartButton.style.display = 'none';
-    }
-
-    // Restart game
     this.startGame();
   }
 }
 
-// Initialize game on DOM ready
+// Initialize game when DOM is ready
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', () => {
-    window.game = new Game();
+    new Game();
   });
 } else {
-  window.game = new Game();
+  new Game();
 }

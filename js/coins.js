@@ -52,5 +52,3 @@ class Coins {
     }
   }
 }
-
-export { Coins };

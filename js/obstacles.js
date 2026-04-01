@@ -40,34 +40,32 @@ class Obstacles {
   /**
    * Updates all obstacles by moving them down by the specified speed
    * Removes obstacles that have moved off-screen
-   * @param {number} speed - The speed in pixels per frame to move obstacles down
-   * @param {number} canvasHeight - The height of the canvas (optional, for cleanup)
+   * @param {number} speed - Speed in pixels per frame
    */
-  update(speed, canvasHeight) {
-    // Move all obstacles down
-    for (let i = 0; i < this.obstacles.length; i++) {
+  update(speed) {
+    for (let i = this.obstacles.length - 1; i >= 0; i--) {
       this.obstacles[i].y += speed;
-    }
-    
-    // Remove obstacles that have moved off-screen
-    if (canvasHeight !== undefined) {
-      this.obstacles = this.obstacles.filter(obstacle => obstacle.y < canvasHeight);
+      
+      // Remove obstacles that have moved off-screen
+      if (this.obstacles[i].y > 650) {
+        this.obstacles.splice(i, 1);
+      }
     }
   }
 
   /**
-   * Draws all obstacles on the canvas as red rectangles
-   * @param {CanvasRenderingContext2D} ctx - The canvas rendering context
+   * Draws all obstacles on the canvas
+   * @param {CanvasRenderingContext2D} ctx - Canvas rendering context
    */
   draw(ctx) {
-    ctx.fillStyle = 'red';
-    for (let obstacle of this.obstacles) {
+    for (const obstacle of this.obstacles) {
+      ctx.fillStyle = '#FF4444';
       ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
     }
   }
 
   /**
-   * Returns the array of current obstacles
+   * Gets all obstacles
    * @returns {Array} Array of obstacle objects
    */
   getObstacles() {
@@ -76,16 +74,11 @@ class Obstacles {
 
   /**
    * Removes an obstacle at the specified index
-   * @param {number} index - The index of the obstacle to remove
+   * @param {number} index - Index of obstacle to remove
    */
   removeObstacle(index) {
     if (index >= 0 && index < this.obstacles.length) {
       this.obstacles.splice(index, 1);
     }
   }
-}
-
-// Export class for use in other modules
-if (typeof module !== 'undefined' && module.exports) {
-  module.exports = Obstacles;
 }
