@@ -3,42 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lane Dodger Game</title>
-    <link rel="stylesheet" href="styles.css">
+    <title>Temple Run</title>
+    <style>
+        /* Styles will be added by other tasks */
+    </style>
 </head>
 <body>
-    <canvas id="gameCanvas" width="800" height="600"></canvas>
+    <canvas id="gameCanvas" width="600" height="800" style="background-color: #f0f0f0; display: block; margin: 0 auto;"></canvas>
+    <div id="uiContainer"></div>
     <script>
-        // Game state object with required properties
-        const gameState = {
-            score: 0,
-            gameActive: true,
-            currentLane: 0,
-            playerY: 0
-        };
-
-        // Get canvas and context
-        const canvas = document.getElementById('gameCanvas');
-        const ctx = canvas.getContext('2d');
-
-        // Game loop using requestAnimationFrame
-        function gameLoop() {
-            // Clear canvas with black background
-            ctx.fillStyle = '#000000';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-            // Log that game loop is running
-            console.log('Game loop running');
-
-            // Game logic would go here
-            // Game state is updated each frame cycle
-
-            // Continue the loop
-            requestAnimationFrame(gameLoop);
-        }
-
-        // Start the game loop
-        gameLoop();
+        // Script content will be added by other tasks
     </script>
 </body>
 </html>
