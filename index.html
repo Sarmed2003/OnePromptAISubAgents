@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#0a0e27">
     <title>3D Endless Runner - Babylon.js</title>
     <style>
         /* Dark theme modern CSS for 3D endless runner game */
@@ -231,72 +232,37 @@
         </div>
     </div>
 
-    <!-- Load Babylon.js from CDN -->
+    <!-- Load Babylon.js from CDN first -->
     <script src="https://cdn.babylonjs.com/babylon.js"></script>
 
-    <!-- Task 7: Input handler for keyboard input -->
-    <script>
-        window.inputHandler = {
-            keysPressed: {},
-            
-            init: function() {
-                window.addEventListener('keydown', this.handleKeyDown.bind(this));
-                window.addEventListener('keyup', this.handleKeyUp.bind(this));
-            },
-            
-            handleKeyDown: function(event) {
-                this.keysPressed[event.key.toLowerCase()] = true;
-            },
-            
-            handleKeyUp: function(event) {
-                this.keysPressed[event.key.toLowerCase()] = false;
-            },
-            
-            update: function() {
-                // This method can be called from the game loop to process input
-                // The keysPressed object is continuously updated by event listeners
-            }
-        };
-    </script>
+    <!-- Task 003: Scene setup and camera/lighting -->
+    <script src="scene.js"></script>
 
-    <!-- Task 2: Scene setup and camera/lighting (empty - to be filled by task-002) -->
-    <script>
-        // Task 2: Scene initialization, camera, lighting
-    </script>
+    <!-- Task 004: Ground/terrain -->
+    <script src="ground.js"></script>
 
-    <!-- Task 3: Player 3D model and controller (empty - to be filled by task-003) -->
-    <script>
-        // Task 3: Player 3D model creation and input handling
-    </script>
+    <!-- Task 005: Player 3D model and controller -->
+    <script src="player.js"></script>
 
-    <!-- Task 4: Obstacles and collectibles (empty - to be filled by task-004) -->
-    <script>
-        // Task 4: Obstacle spawning and collectible items
-    </script>
+    <!-- Task 006: Obstacles -->
+    <script src="obstacles.js"></script>
 
-    <!-- Task 5: Collision detection (empty - to be filled by task-005) -->
-    <script>
-        // Task 5: Collision detection system
-    </script>
+    <!-- Task 007: Collectible coins -->
+    <script src="coins.js"></script>
 
-    <!-- Task 6: Game loop and state management (empty - to be filled by task-006) -->
-    <script>
-        // Task 6: Main game loop and state management
-    </script>
+    <!-- Task 008: Input handler for keyboard/controls -->
+    <script src="input.js"></script>
 
-    <!-- Task 8: Audio system (empty - to be filled by task-008) -->
-    <script>
-        // Task 8: Audio effects and background music
-    </script>
+    <!-- Task 009: Collision detection -->
+    <script src="collision.js"></script>
 
-    <!-- Task 9: Visual effects and particles (empty - to be filled by task-009) -->
-    <script>
-        // Task 9: Particle effects and visual enhancements
-    </script>
+    <!-- Task 010: Particle effects and visual effects -->
+    <script src="particles.js"></script>
 
-    <!-- Task 10: Game initialization and entry point (empty - to be filled by task-010) -->
-    <script>
-        // Task 10: Game initialization and startup
-    </script>
+    <!-- Task 011: UI and HUD updates -->
+    <script src="ui.js"></script>
+
+    <!-- Task 012: Main game loop and state management -->
+    <script src="game.js"></script>
 </body>
 </html>
