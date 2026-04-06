@@ -6,6 +6,7 @@ node_modules/
 # Testing
 coverage/
 .nyc_output/
+.vitest/
 
 # Production
 dist/
@@ -16,6 +17,7 @@ build/
 .env
 .env.local
 .env.*.local
+.env.production
 
 # IDE
 .vscode/
@@ -24,6 +26,7 @@ build/
 *.swo
 *~
 .DS_Store
+*.iml
 
 # Logs
 logs/
@@ -37,11 +40,14 @@ lerna-debug.log*
 Thumbs.db
 .DS_Store
 
-# CDK
-cdk.out/
-*.d.ts
-!*.d.ts
+# Docker
+.dockerignore
 
 # Misc
 .cache/
 .turbo/
+.env.test
+
+# Generated files
+*.tgz
+*.zip
