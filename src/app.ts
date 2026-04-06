@@ -4,18 +4,23 @@ import { authMiddleware } from './middleware/auth';
 import { errorHandler } from './middleware/errorHandler';
 import routes from './routes/index';
 
-const app: Express = express();
+const createApp = (): Express => {
+  const app: Express = express();
 
-// Middleware
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-app.use(loggingMiddleware);
-app.use(authMiddleware);
+  // Middleware
+  app.use(express.json());
+  app.use(express.urlencoded({ extended: true }));
+  app.use(loggingMiddleware);
+  app.use(authMiddleware);
 
-// Routes
-app.use(routes);
+  // Routes
+  app.use(routes);
 
-// Error handling middleware (must be last)
-app.use(errorHandler);
+  // Error handling middleware (must be last)
+  app.use(errorHandler);
 
-export default app;
+  return app;
+};
+
+export { createApp };
+export default createApp();
