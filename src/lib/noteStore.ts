@@ -4,7 +4,7 @@ import { generateId, getCurrentTimestamp } from './utils';
 class NoteStore {
   private notes: Map<string, Note> = new Map();
 
-  constructor() {
+  constructor(): void {
     // Initialize with sample notes
     const sampleNote1: Note = {
       id: 'note-001',
@@ -33,8 +33,8 @@ class NoteStore {
   }
 
   createNote(title: string, content: string): Note {
-    const id = generateId();
-    const now = getCurrentTimestamp();
+    const id: string = generateId();
+    const now: string = getCurrentTimestamp();
     const note: Note = {
       id,
       title,
@@ -47,7 +47,7 @@ class NoteStore {
   }
 
   updateNote(id: string, title: string, content: string): Note | undefined {
-    const note = this.notes.get(id);
+    const note: Note | undefined = this.notes.get(id);
     if (!note) return undefined;
     const updated: Note = {
       ...note,
@@ -64,4 +64,4 @@ class NoteStore {
   }
 }
 
-export const noteStore = new NoteStore();
+export const noteStore: NoteStore = new NoteStore();
