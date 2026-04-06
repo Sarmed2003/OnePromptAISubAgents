@@ -3,6 +3,36 @@ import { Note } from '../types';
 import { noteStore } from '../lib/noteStore';
 import { generateId } from '../lib/utils';
 
+export const notesHandler = (req: Request, res: Response): void => {
+  try {
+    const filter = req.query.filter as string | undefined;
+    const limit = req.query.limit as string | undefined;
+
+    let notes = noteStore.getAll();
+
+    if (filter) {
+      const filterLower = filter.toLowerCase();
+      notes = notes.filter((note) =>
+        note.title.toLowerCase().includes(filterLower) ||
+        note.content.toLowerCase().includes(filterLower)
+      );
+    }
+
+    if (limit) {
+      const limitNum = parseInt(limit, 10);
+      if (!isNaN(limitNum) && limitNum > 0) {
+        notes = notes.slice(0, limitNum);
+      }
+    }
+
+    res.status(200).json(notes);
+  } catch (err) {
+    console.error('notesHandler error:', err);
+    const message = err instanceof Error ? err.message : 'Internal server error';
+    res.status(500).json({ error: message });
+  }
+};
+
 export const getNotesHandler = (_req: Request, res: Response): void => {
   const notes = noteStore.getAll();
   res.status(200).json(notes);
