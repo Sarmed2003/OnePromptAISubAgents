@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { healthHandler } from '../src/handlers/health';
 import { notesHandler } from '../src/handlers/notes';
 
@@ -7,6 +7,15 @@ describe('Health Handler', () => {
     const result = healthHandler();
     expect(result.status).toBe('healthy');
     expect(result.timestamp).toBeDefined();
+  });
+});
+
+describe('GET /health', () => {
+  it('should return HTTP 200 with {"ok":true}', async () => {
+    const response = await fetch('http://localhost:3000/health');
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body).toEqual({ ok: true });
   });
 });
 
