@@ -70,11 +70,19 @@ The GitHub Actions workflow runs on every push and pull request:
 
 ### Required Secrets
 
-No secrets are currently required. Configure the following if adding external services:
+Configure the following secrets in GitHub Actions:
 
+- `AUTH_SECRET`: Authentication secret for signing tokens (stored in AWS Secrets Manager or GitHub Secrets, injected at runtime)
 - `AWS_ROLE_ARN`: For AWS deployments
 - `AWS_REGION`: Target AWS region
 - `DEPLOY_KEY`: SSH key for deployment servers
+
+**Important**: Never commit `AUTH_SECRET` or any sensitive credentials to version control. Use secure secret management systems:
+
+- **AWS Secrets Manager**: Recommended for AWS deployments
+- **GitHub Secrets**: For GitHub Actions CI/CD
+- **HashiCorp Vault**: For multi-environment deployments
+- **Environment-specific configuration**: Use different secrets per environment (dev, staging, production)
 
 ## Production Deployment
 
@@ -84,10 +92,11 @@ No secrets are currently required. Configure the following if adding external se
 # Build image
 docker build -t api-platform:latest .
 
-# Run container
+# Run container with secure secret injection
 docker run -p 3000:3000 \
   -e NODE_ENV=production \
   -e PORT=3000 \
+  -e AUTH_SECRET="${AUTH_SECRET}" \
   api-platform:latest
 ```
 
@@ -100,9 +109,54 @@ NODE_ENV=production
 PORT=3000
 LOG_LEVEL=warn
 CORS_ORIGIN=https://yourdomain.com
+AUTH_ENABLED=true
+# AUTH_SECRET must be injected from secure secret management, never hardcoded
 ```
 
 See `.env.example` for all available options.
+
+### Secure Secret Management
+
+#### AWS Secrets Manager
+
+```bash
+# Store secret
+aws secretsmanager create-secret --name api-platform/auth-secret --secret-string "your-secret-key"
+
+# Retrieve and inject into container
+AUTH_SECRET=$(aws secretsmanager get-secret-value --secret-id api-platform/auth-secret --query SecretString --output text)
+docker run -p 3000:3000 \
+  -e NODE_ENV=production \
+  -e AUTH_SECRET="${AUTH_SECRET}" \
+  api-platform:latest
+```
+
+#### GitHub Actions
+
+1. Add secret to GitHub repository settings: Settings → Secrets and variables → Actions
+2. Create `AUTH_SECRET` as a repository secret
+3. Use in workflow:
+
+```yaml
+env:
+  AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
+```
+
+#### Kubernetes (if applicable)
+
+```bash
+# Create secret
+kubectl create secret generic api-platform-secrets \
+  --from-literal=auth-secret="your-secret-key"
+
+# Reference in deployment manifest
+env:
+  - name: AUTH_SECRET
+    valueFrom:
+      secretKeyRef:
+        name: api-platform-secrets
+        key: auth-secret
+```
 
 ### Health Checks
 
@@ -159,8 +213,11 @@ The application is stateless and can be scaled horizontally:
 - Non-root user (nodejs:nodejs) runs the application
 - Minimal Alpine base image reduces attack surface
 - Dependencies pinned in package-lock.json
-- No secrets in Docker image
+- **No secrets in Docker image** — all sensitive values injected at runtime
 - Environment variables for sensitive configuration
+- Secrets managed through secure secret management systems (AWS Secrets Manager, GitHub Secrets, etc.)
+- Regular security audits of dependencies (`npm audit`)
+- CORS properly configured for production domains
 
 ## Troubleshooting
 
@@ -193,6 +250,15 @@ docker run -e PORT=8080 -p 8080:8080 api-platform:latest
 - Monitor with: `docker stats <container-id>`
 - Set memory limits: `docker run -m 512m api-platform:latest`
 
+### Missing AUTH_SECRET error
+
+If the application fails with an authentication error:
+
+1. Verify `AUTH_SECRET` is set in your secret management system
+2. Confirm the environment variable is injected into the container
+3. Check that the secret value is not empty or malformed
+4. Review application logs for specific error details
+
 ## Performance Optimization
 
 1. **Build Cache**: Docker layer caching is optimized in multi-stage build
@@ -217,3 +283,5 @@ git push origin v1.0.0
 - [Node.js Best Practices](https://nodejs.org/en/docs/guides/nodejs-docker-webapp/)
 - [Docker Documentation](https://docs.docker.com/)
 - [GitHub Actions Documentation](https://docs.github.com/en/actions)
+- [AWS Secrets Manager Documentation](https://docs.aws.amazon.com/secretsmanager/)
+- [OWASP: Secrets Management](https://cheatsheetseries.owasp.org/cheatsheets/Secrets_Management_Cheat_Sheet.html)
