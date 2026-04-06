@@ -8,8 +8,12 @@ import {
   deleteNote,
 } from '../handlers/notes';
 import { authMiddleware, resourceOwnershipMiddleware } from '../middleware/auth';
+import { rateLimitMiddleware } from '../middleware/errorHandler';
 
 const router = Router();
+
+// Apply rate limiting to all routes
+router.use(rateLimitMiddleware);
 
 // Health check endpoint (public)
 router.get('/health', (req: Request, res: Response, next: NextFunction) => {

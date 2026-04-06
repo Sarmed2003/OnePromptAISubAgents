@@ -2,7 +2,7 @@
 
 ## Overview
 
-This is a containerized Node.js/TypeScript application with both a backend API and frontend static assets. It uses Docker for containerization and GitHub Actions for CI/CD.
+This is a containerized Node.js/TypeScript application with both a backend API and frontend static assets. It uses Docker for containerization and GitHub Actions for CI/CD. The API includes built-in rate limiting to protect against abuse.
 
 ## Prerequisites
 
@@ -73,6 +73,67 @@ Configure via `.env` file or Docker environment:
 - `LOG_LEVEL` - Logging level (default: info)
 - `API_TIMEOUT` - API request timeout in ms (default: 30000)
 
+## Rate Limiting
+
+The API implements per-user rate limiting to protect against abuse and DoS attacks:
+
+### Configuration
+
+- **Rate Limit**: 100 requests per minute per user
+- **Window**: 60 seconds
+- **Identifier**: User ID (if authenticated) or IP address (if anonymous)
+
+### Rate Limit Headers
+
+All API responses include rate limit information:
+
+```
+X-RateLimit-Limit: 100
+X-RateLimit-Remaining: 95
+X-RateLimit-Reset: 1699564800000
+```
+
+### Rate Limit Exceeded Response
+
+When a user exceeds the rate limit, the API returns a 429 (Too Many Requests) response:
+
+```json
+{
+  "error": {
+    "message": "Rate limit exceeded. Maximum 100 requests per minute allowed.",
+    "code": "RATE_LIMIT_EXCEEDED"
+  }
+}
+```
+
+The response includes a `Retry-After` header indicating when to retry:
+
+```
+Retry-After: 45
+```
+
+### Disabling Rate Limiting for Specific Routes
+
+To exclude the health check endpoint from rate limiting, apply middleware selectively on specific routes:
+
+```typescript
+router.get('/health', (req, res) => {
+  // No rate limiting applied
+});
+
+router.use(rateLimitMiddleware);
+router.get('/api/notes', ...);
+```
+
+### Adjusting Rate Limits
+
+To modify rate limits, edit the constants in `src/middleware/errorHandler.ts`:
+
+```typescript
+const RATE_LIMIT_WINDOW_MS = 60000;        // Window duration in milliseconds
+const RATE_LIMIT_MAX_REQUESTS = 100;       // Max requests per window
+```
+
 ## Production Deployment
 
 ### Option 1: Cloud Container Registry (ECR, Docker Hub, GHCR)
@@ -131,6 +192,58 @@ spec:
             memory: 512Mi
 ```
 
+**Note on Rate Limiting with Kubernetes:**
+
+When deploying to Kubernetes with multiple replicas, the in-memory rate limiting store is per-instance. For distributed rate limiting across all replicas, consider:
+
+1. **Redis-based rate limiting** - Use Redis to store rate limit counters across all instances
+2. **API Gateway rate limiting** - Implement rate limiting at the ingress level (e.g., nginx, Istio)
+3. **Sticky sessions** - Route requests from the same user to the same pod (less ideal)
+
+Example Redis integration:
+
+```typescript
+import redis from 'redis';
+
+const redisClient = redis.createClient();
+
+export async function rateLimitMiddlewareRedis(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  const userId = (req as any).userId || req.ip || 'anonymous';
+  const key = `ratelimit:${userId}`;
+  const now = Date.now();
+  const windowStart = now - RATE_LIMIT_WINDOW_MS;
+
+  // Remove old entries
+  await redisClient.zremrangebyscore(key, '-inf', windowStart);
+
+  // Count requests in current window
+  const count = await redisClient.zcard(key);
+
+  if (count >= RATE_LIMIT_MAX_REQUESTS) {
+    res.status(429).json(
+      formatError(
+        `Rate limit exceeded. Maximum ${RATE_LIMIT_MAX_REQUESTS} requests per minute allowed.`,
+        'RATE_LIMIT_EXCEEDED'
+      )
+    );
+    return;
+  }
+
+  // Add current request
+  await redisClient.zadd(key, now, `${now}-${Math.random()}`);
+  await redisClient.expire(key, Math.ceil(RATE_LIMIT_WINDOW_MS / 1000));
+
+  res.setHeader('X-RateLimit-Limit', RATE_LIMIT_MAX_REQUESTS);
+  res.setHeader('X-RateLimit-Remaining', RATE_LIMIT_MAX_REQUESTS - count - 1);
+
+  next();
+}
+```
+
 ### Option 3: Traditional VPS/VM
 
 1. SSH into your server
@@ -154,6 +267,14 @@ The application exposes a health check endpoint:
 curl http://localhost:3000/health
 ```
 
+### Rate Limiting Monitoring
+
+Monitor rate limit violations in application logs. Look for `RATE_LIMIT_EXCEEDED` errors:
+
+```bash
+docker logs <container_id> | grep RATE_LIMIT_EXCEEDED
+```
+
 ## Graceful Shutdown
 
 The application handles `SIGTERM` and `SIGINT` signals for graceful shutdown:
@@ -171,11 +292,15 @@ The application handles `SIGTERM` and `SIGINT` signals for graceful shutdown:
 docker-compose up -d --scale app=3
 ```
 
+**Important:** When scaling horizontally, rate limiting is per-instance. For consistent rate limiting across instances, use Redis-based rate limiting (see Kubernetes section above).
+
 ### Kubernetes
 
 ```bash
 kubectl scale deployment api-app --replicas=3
 ```
+
+For distributed rate limiting, deploy a Redis instance alongside the application.
 
 ## Troubleshooting
 
@@ -197,6 +322,13 @@ kubectl scale deployment api-app --replicas=3
 2. Verify Node.js version compatibility
 3. Ensure all dependencies are declared in package.json
 
+### Rate limiting not working
+
+1. Verify `rateLimitMiddleware` is applied in `src/routes/index.ts`
+2. Check that rate limit constants are correctly configured
+3. For multi-instance deployments, ensure Redis is configured
+4. Monitor `X-RateLimit-*` headers in responses
+
 ## Rollback Procedure
 
 1. Identify the previous stable image tag
@@ -211,7 +343,9 @@ kubectl scale deployment api-app --replicas=3
 - Scan images for vulnerabilities: `docker scan app:latest`
 - Use environment variables for secrets (never commit to repo)
 - Enable HTTPS in production via reverse proxy
-- Implement rate limiting and request validation
+- **Rate limiting enabled** - Protects against abuse and DoS attacks (100 requests/minute per user)
+- Implement request validation
+- Monitor rate limit violations for suspicious activity
 
 ## Performance Optimization
 
@@ -220,6 +354,7 @@ kubectl scale deployment api-app --replicas=3
 - Layer caching in CI/CD for faster builds
 - Health checks configured for fast recovery
 - Non-root user reduces attack surface
+- In-memory rate limiting for low-latency protection (consider Redis for distributed systems)
 
 ## Support
 
