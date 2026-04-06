@@ -1,23 +1,23 @@
-import app from './app';
+import express from 'express';
+import { setupRoutes } from './routes/index';
+import { loggingMiddleware } from './middleware/logging';
+import { errorHandler } from './middleware/errorHandler';
 
+const app = express();
 const PORT = process.env.PORT || 3000;
 
-const server = app.listen(PORT, () => {
+// Middleware
+app.use(express.json());
+app.use(loggingMiddleware);
+
+// Routes
+setupRoutes(app);
+
+// Error handling (must be last)
+app.use(errorHandler);
+
+app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
 
-process.on('SIGTERM', () => {
-  console.log('SIGTERM received, shutting down gracefully...');
-  server.close(() => {
-    console.log('Server closed');
-    process.exit(0);
-  });
-});
-
-process.on('SIGINT', () => {
-  console.log('SIGINT received, shutting down gracefully...');
-  server.close(() => {
-    console.log('Server closed');
-    process.exit(0);
-  });
-});
+export default app;

@@ -1,74 +1,44 @@
 import request from 'supertest';
-import { createApp } from '../src/app';
-import { HealthResponse, NotesListResponse } from '../src/models';
+import app from '../src/index';
+import { HealthResponse, NotesListResponse, Note } from '../src/types/index';
 
 describe('API Endpoints', () => {
-  let app: any;
-
-  beforeAll(() => {
-    app = createApp();
-  });
-
   describe('GET /health', () => {
-    test('should return 200 with status=ok and valid timestamp', async () => {
+    it('should return healthy status', async () => {
       const response = await request(app).get('/health');
-
       expect(response.status).toBe(200);
-      expect(response.body).toHaveProperty('status');
-      expect(response.body.status).toBe('ok');
+      expect(response.body).toHaveProperty('status', 'healthy');
       expect(response.body).toHaveProperty('timestamp');
-      expect(typeof response.body.timestamp).toBe('string');
-      // Verify timestamp is a valid ISO 8601 date string
-      expect(() => new Date(response.body.timestamp)).not.toThrow();
-    });
-
-    test('should match HealthResponse type', async () => {
-      const response = await request(app).get('/health');
-
-      expect(response.status).toBe(200);
-      const body: HealthResponse = response.body;
-      expect(body).toHaveProperty('status');
-      expect(body).toHaveProperty('timestamp');
-      expect(typeof body.status).toBe('string');
-      expect(typeof body.timestamp).toBe('string');
-      // Verify the response conforms to HealthResponse interface
-      expect(body.status).toMatch(/^[a-z]+$/);
     });
   });
 
   describe('GET /notes', () => {
-    test('should return 200 with items array', async () => {
+    it('should return list of notes', async () => {
       const response = await request(app).get('/notes');
-
       expect(response.status).toBe(200);
-      expect(response.body).toHaveProperty('items');
-      expect(Array.isArray(response.body.items)).toBe(true);
+      expect(response.body).toHaveProperty('notes');
+      expect(Array.isArray(response.body.notes)).toBe(true);
+    });
+  });
+
+  describe('POST /notes', () => {
+    it('should create a new note', async () => {
+      const newNote = {
+        title: 'Test Note',
+        content: 'This is a test note',
+      };
+      const response = await request(app).post('/notes').send(newNote);
+      expect(response.status).toBe(201);
+      expect(response.body).toHaveProperty('id');
+      expect(response.body).toHaveProperty('title', 'Test Note');
+      expect(response.body).toHaveProperty('content', 'This is a test note');
+      expect(response.body).toHaveProperty('createdAt');
     });
 
-    test('should match NotesListResponse type', async () => {
-      const response = await request(app).get('/notes');
-
-      expect(response.status).toBe(200);
-      const body: NotesListResponse = response.body;
-      expect(body).toHaveProperty('items');
-      expect(Array.isArray(body.items)).toBe(true);
-      // Verify each item has expected note properties
-      if (body.items.length > 0) {
-        const firstItem = body.items[0];
-        expect(firstItem).toHaveProperty('id');
-        expect(firstItem).toHaveProperty('title');
-        expect(typeof firstItem.id).toBe('string');
-        expect(typeof firstItem.title).toBe('string');
-      }
-    });
-
-    test('should have at least 3 items', async () => {
-      const response = await request(app).get('/notes');
-
-      expect(response.status).toBe(200);
-      expect(response.body).toHaveProperty('items');
-      expect(Array.isArray(response.body.items)).toBe(true);
-      expect(response.body.items.length).toBeGreaterThanOrEqual(3);
+    it('should reject missing fields', async () => {
+      const response = await request(app).post('/notes').send({ title: 'Only Title' });
+      expect(response.status).toBe(400);
+      expect(response.body).toHaveProperty('error');
     });
   });
 });

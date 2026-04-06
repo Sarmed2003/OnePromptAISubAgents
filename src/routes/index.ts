@@ -1,10 +1,9 @@
-import { Router } from 'express';
+import { Express } from 'express';
 import { healthHandler } from '../handlers/health';
-import { notesHandler } from '../handlers/notes';
+import { getNotesHandler, createNoteHandler } from '../handlers/notes';
 
-const router = Router();
-
-router.get('/health', healthHandler);
-router.get('/notes', notesHandler);
-
-export default router;
+export function setupRoutes(app: Express): void {
+  app.get('/health', healthHandler);
+  app.get('/notes', getNotesHandler);
+  app.post('/notes', createNoteHandler);
+}

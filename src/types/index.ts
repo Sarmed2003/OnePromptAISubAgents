@@ -1,20 +1,20 @@
-export interface HealthResponse {
-  status: 'ok';
-  timestamp: string;
+export interface Note {
+  id: string;
+  title: string;
+  content: string;
+  createdAt: string;
 }
 
-export interface Note {
-  id: number;
+export interface CreateNoteRequest {
   title: string;
   content: string;
 }
 
 export interface NotesListResponse {
-  items: Note[];
+  notes: Note[];
 }
 
-export interface ApiResponse<T> {
-  success: boolean;
-  data?: T;
-  error?: string;
+export interface HealthResponse {
+  status: string;
+  timestamp: string;
 }

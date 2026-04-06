@@ -1,85 +1,28 @@
 import { Request, Response } from 'express';
+import { Note, NotesListResponse, CreateNoteRequest } from '../types/index';
+import { getAllNotes, addNote } from '../lib/noteStore';
+import { generateId } from '../lib/utils';
 
-interface Note {
-  id: string;
-  title: string;
-  content: string;
+export function getNotesHandler(req: Request, res: Response<NotesListResponse>): void {
+  const notes = getAllNotes();
+  res.json({ notes });
 }
 
-interface NotesListResponse {
-  items: Note[];
-}
+export function createNoteHandler(req: Request, res: Response<Note | { error: string }>): void {
+  const { title, content } = req.body as CreateNoteRequest;
 
-interface NoteStore {
-  getAll(): Promise<Note[]>;
-}
-
-let noteStore: NoteStore;
-
-export function setNoteStore(store: NoteStore): void {
-  noteStore = store;
-}
-
-export async function getNotes(
-  req: Request,
-  res: Response
-): Promise<void> {
-  try {
-    if (!noteStore) {
-      res.status(500).json({
-        error: {
-          message: 'Note store not initialized',
-          code: 'STORE_NOT_INITIALIZED'
-        }
-      });
-      return;
-    }
-
-    const notes = await noteStore.getAll();
-
-    // Validate that notes is an array
-    if (!Array.isArray(notes)) {
-      res.status(500).json({
-        error: {
-          message: 'Invalid store response: expected array',
-          code: 'INVALID_STORE_RESPONSE'
-        }
-      });
-      return;
-    }
-
-    // Validate each note has required fields
-    for (const note of notes) {
-      if (
-        typeof note !== 'object' ||
-        note === null ||
-        typeof note.id !== 'string' ||
-        typeof note.title !== 'string' ||
-        typeof note.content !== 'string'
-      ) {
-        res.status(500).json({
-          error: {
-            message: 'Invalid note object in store response',
-            code: 'INVALID_NOTE_OBJECT'
-          }
-        });
-        return;
-      }
-    }
-
-    const response: NotesListResponse = {
-      items: notes
-    };
-
-    res.status(200).json(response);
-  } catch (err) {
-    console.error('getNotes handler error:', err);
-    const message = err instanceof Error ? err.message : 'Internal server error';
-    res.status(500).json({
-      error: {
-        message,
-        code: 'INTERNAL_ERROR'
-      }
-    });
+  if (!title || !content) {
+    res.status(400).json({ error: 'Missing required fields: title and content' });
+    return;
   }
+
+  const note: Note = {
+    id: generateId(),
+    title,
+    content,
+    createdAt: new Date().toISOString(),
+  };
+
+  addNote(note);
+  res.status(201).json(note);
 }
