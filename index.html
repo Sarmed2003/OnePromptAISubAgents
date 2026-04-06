@@ -26,12 +26,13 @@
             <h1 class="modal-title">GAME OVER</h1>
             <p class="modal-score-label">Final Score</p>
             <div class="modal-score" id="finalScore">0</div>
-            <button class="modal-button" onclick="window.restartGame()">RUN AGAIN</button>
+            <button class="modal-button" id="restartButton">RUN AGAIN</button>
             <p class="modal-hint">Press SPACE or tap to restart</p>
         </div>
     </div>
 
     <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.6/dist/purify.min.js"></script>
 
     <script src="js/scene.js"></script>
     <script src="js/ground.js"></script>
