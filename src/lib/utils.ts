@@ -1,7 +1,7 @@
 export function generateId(): string {
-  return Math.random().toString(36).substring(2, 11);
+  return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 }
 
-export function getCurrentTimestamp(): string {
-  return new Date().toISOString();
+export function formatDate(date: Date): string {
+  return date.toISOString();
 }

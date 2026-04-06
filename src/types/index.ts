@@ -3,4 +3,11 @@ export interface Note {
   title: string;
   content: string;
   createdAt: string;
+  updatedAt: string;
+}
+
+export interface ApiResponse<T> {
+  status: 'ok' | 'error';
+  data?: T;
+  error?: string;
 }

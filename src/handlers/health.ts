@@ -1,5 +1,8 @@
 import { Request, Response } from 'express';
 
-export async function healthHandler(req: Request, res: Response): Promise<void> {
-  res.status(200).json({ ok: true });
-}
+export const healthHandler = (_req: Request, res: Response): void => {
+  res.status(200).json({
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+  });
+};

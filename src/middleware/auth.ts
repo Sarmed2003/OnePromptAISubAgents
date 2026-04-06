@@ -1,13 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 
-export function authMiddleware(req: Request, _res: Response, next: NextFunction): void {
-  // Placeholder: Implement authentication logic
-  // Examples: JWT verification, API key validation, OAuth
-  const authHeader = req.get('Authorization');
-  
-  if (authHeader) {
-    console.log('Authorization header present');
-  }
-  
+export const authMiddleware = (_req: Request, _res: Response, next: NextFunction): void => {
+  // Placeholder auth middleware - implement based on your auth strategy
   next();
-}
+};

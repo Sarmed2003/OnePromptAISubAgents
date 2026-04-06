@@ -1,18 +1,18 @@
-import { Router, Request, Response } from 'express';
+import { Router } from 'express';
 import { healthHandler } from '../handlers/health';
-import { notesHandler } from '../handlers/notes';
+import { getNotesHandler, createNoteHandler, getNoteHandler, updateNoteHandler, deleteNoteHandler } from '../handlers/notes';
+import { authMiddleware } from '../middleware/auth';
 
-export const routes = Router();
+const router = Router();
 
-routes.get('/health', (_req: Request, res: Response) => {
-  res.json(healthHandler());
-});
+// Health check (no auth required)
+router.get('/health', healthHandler);
 
-routes.get('/notes', (_req: Request, res: Response) => {
-  res.json(notesHandler.getAll());
-});
+// Notes routes (with auth middleware)
+router.get('/api/notes', authMiddleware, getNotesHandler);
+router.post('/api/notes', authMiddleware, createNoteHandler);
+router.get('/api/notes/:id', authMiddleware, getNoteHandler);
+router.put('/api/notes/:id', authMiddleware, updateNoteHandler);
+router.delete('/api/notes/:id', authMiddleware, deleteNoteHandler);
 
-routes.post('/notes', (req: Request, res: Response) => {
-  const note = notesHandler.create(req.body);
-  res.status(201).json(note);
-});
+export default router;
