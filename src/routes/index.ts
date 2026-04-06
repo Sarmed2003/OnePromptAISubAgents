@@ -1,4 +1,4 @@
-import { Router, Request, Response, NextFunction } from 'express';
+import { Router, Request, Response } from 'express';
 import { getHealth } from '../handlers/health';
 import {
   getAllNotes,
@@ -16,26 +16,26 @@ const router = Router();
 router.use(rateLimitMiddleware);
 
 // Health check endpoint (public)
-router.get('/health', (req: Request, res: Response, next: NextFunction) => {
+router.get('/health', (req: Request, res: Response) => {
   getHealth(req, res);
 });
 
 // Notes endpoints
-router.get('/api/notes', (req: Request, res: Response, next: NextFunction) => {
+router.get('/api/notes', (req: Request, res: Response) => {
   getAllNotes(req, res);
 });
 
 router.post(
   '/api/notes',
   authMiddleware,
-  (req: Request, res: Response, next: NextFunction) => {
+  (req: Request, res: Response) => {
     createNote(req, res);
   }
 );
 
 router.get(
   '/api/notes/:id',
-  (req: Request, res: Response, next: NextFunction) => {
+  (req: Request, res: Response) => {
     getNoteById(req, res);
   }
 );
@@ -44,7 +44,7 @@ router.put(
   '/api/notes/:id',
   authMiddleware,
   resourceOwnershipMiddleware,
-  (req: Request, res: Response, next: NextFunction) => {
+  (req: Request, res: Response) => {
     updateNote(req, res);
   }
 );
@@ -53,7 +53,7 @@ router.delete(
   '/api/notes/:id',
   authMiddleware,
   resourceOwnershipMiddleware,
-  (req: Request, res: Response, next: NextFunction) => {
+  (req: Request, res: Response) => {
     deleteNote(req, res);
   }
 );
