@@ -1,60 +1,67 @@
 import { Note } from '../types/index';
 import { generateId, getCurrentTimestamp } from './utils';
 
-const notes: Map<string, Note> = new Map();
+class NoteStore {
+  private notes: Map<string, Note> = new Map();
 
-// Initialize with sample data
-notes.set('note-001', {
-  id: 'note-001',
-  title: 'Welcome to DemoPulse',
-  content: 'This is a sample note.',
-  createdAt: '2024-01-15T10:00:00Z',
-  updatedAt: '2024-01-15T10:00:00Z',
-});
+  constructor() {
+    // Initialize with sample notes
+    const sampleNote1: Note = {
+      id: 'note-001',
+      title: 'Welcome to DemoPulse',
+      content: 'This is a sample note.',
+      createdAt: getCurrentTimestamp(),
+      updatedAt: getCurrentTimestamp(),
+    };
+    const sampleNote2: Note = {
+      id: 'note-002',
+      title: 'API Documentation',
+      content: 'Comprehensive REST API endpoints.',
+      createdAt: getCurrentTimestamp(),
+      updatedAt: getCurrentTimestamp(),
+    };
+    this.notes.set(sampleNote1.id, sampleNote1);
+    this.notes.set(sampleNote2.id, sampleNote2);
+  }
 
-notes.set('note-002', {
-  id: 'note-002',
-  title: 'API Documentation',
-  content: 'Comprehensive REST API endpoints.',
-  createdAt: '2024-01-15T10:15:00Z',
-  updatedAt: '2024-01-15T10:15:00Z',
-});
+  getAllNotes(): Note[] {
+    return Array.from(this.notes.values());
+  }
 
-export function getAllNotes(): Note[] {
-  return Array.from(notes.values());
+  getNoteById(id: string): Note | undefined {
+    return this.notes.get(id);
+  }
+
+  createNote(title: string, content: string): Note {
+    const id = generateId();
+    const now = getCurrentTimestamp();
+    const note: Note = {
+      id,
+      title,
+      content,
+      createdAt: now,
+      updatedAt: now,
+    };
+    this.notes.set(id, note);
+    return note;
+  }
+
+  updateNote(id: string, title: string, content: string): Note | undefined {
+    const note = this.notes.get(id);
+    if (!note) return undefined;
+    const updated: Note = {
+      ...note,
+      title,
+      content,
+      updatedAt: getCurrentTimestamp(),
+    };
+    this.notes.set(id, updated);
+    return updated;
+  }
+
+  deleteNote(id: string): boolean {
+    return this.notes.delete(id);
+  }
 }
 
-export function getNoteById(id: string): Note | undefined {
-  return notes.get(id);
-}
-
-export function createNote(title: string, content: string): Note {
-  const id = generateId();
-  const now = getCurrentTimestamp();
-  const note: Note = {
-    id,
-    title,
-    content,
-    createdAt: now,
-    updatedAt: now,
-  };
-  notes.set(id, note);
-  return note;
-}
-
-export function updateNote(id: string, title: string, content: string): Note | undefined {
-  const note = notes.get(id);
-  if (!note) return undefined;
-  const updated: Note = {
-    ...note,
-    title,
-    content,
-    updatedAt: getCurrentTimestamp(),
-  };
-  notes.set(id, updated);
-  return updated;
-}
-
-export function deleteNote(id: string): boolean {
-  return notes.delete(id);
-}
+export const noteStore = new NoteStore();

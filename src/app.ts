@@ -1,30 +1,21 @@
 import express, { Express } from 'express';
 import { loggingMiddleware } from './middleware/logging';
 import { authMiddleware } from './middleware/auth';
-import { errorHandlerMiddleware } from './middleware/errorHandler';
-import { healthHandler } from './handlers/health';
-import { router } from './routes/index';
+import { errorHandler } from './middleware/errorHandler';
+import routes from './routes/index';
 
-export function createApp(): Express {
-  const app = express();
+const app: Express = express();
 
-  // Body parsing middleware
-  app.use(express.json());
+// Middleware
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(loggingMiddleware);
+app.use(authMiddleware);
 
-  // Logging middleware
-  app.use(loggingMiddleware);
+// Routes
+app.use(routes);
 
-  // Authentication middleware
-  app.use(authMiddleware);
+// Error handling middleware (must be last)
+app.use(errorHandler);
 
-  // Health check endpoint
-  app.get('/health', healthHandler);
-
-  // API routes
-  app.use('/api', router);
-
-  // Error handling middleware (must be last)
-  app.use(errorHandlerMiddleware);
-
-  return app;
-}
+export default app;

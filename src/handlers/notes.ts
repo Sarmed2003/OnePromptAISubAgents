@@ -1,102 +1,52 @@
 import { Request, Response } from 'express';
-import { Note } from '../types/index';
-import * as noteStore from '../lib/noteStore';
-import { AppError } from '../middleware/errorHandler';
+import { noteStore } from '../lib/noteStore';
+import { formatError } from '../lib/utils';
 
-export function getNotesHandler(req: Request, res: Response): void {
+export function getAllNotes(req: Request, res: Response): void {
   const notes = noteStore.getAllNotes();
-  res.status(200).json(notes);
+  res.json(notes);
 }
 
-export function getNoteByIdHandler(req: Request, res: Response): void {
+export function getNoteById(req: Request, res: Response): void {
   const { id } = req.params;
   const note = noteStore.getNoteById(id);
   if (!note) {
-    res.status(404).json({
-      error: {
-        message: 'Note not found',
-        code: 'NOT_FOUND',
-      },
-    });
+    res.status(404).json(formatError('Note not found', 'NOT_FOUND'));
     return;
   }
-  res.status(200).json(note);
+  res.json(note);
 }
 
-export function createNoteHandler(req: Request, res: Response): void {
+export function createNote(req: Request, res: Response): void {
   const { title, content } = req.body;
-
-  if (!title || typeof title !== 'string') {
-    res.status(400).json({
-      error: {
-        message: 'Title is required and must be a string',
-        code: 'INVALID_REQUEST',
-      },
-    });
+  if (!title || !content) {
+    res.status(400).json(formatError('Title and content are required', 'INVALID_REQUEST'));
     return;
   }
-
-  if (!content || typeof content !== 'string') {
-    res.status(400).json({
-      error: {
-        message: 'Content is required and must be a string',
-        code: 'INVALID_REQUEST',
-      },
-    });
-    return;
-  }
-
   const note = noteStore.createNote(title, content);
   res.status(201).json(note);
 }
 
-export function updateNoteHandler(req: Request, res: Response): void {
+export function updateNote(req: Request, res: Response): void {
   const { id } = req.params;
   const { title, content } = req.body;
-
-  if (!title || typeof title !== 'string') {
-    res.status(400).json({
-      error: {
-        message: 'Title is required and must be a string',
-        code: 'INVALID_REQUEST',
-      },
-    });
+  if (!title || !content) {
+    res.status(400).json(formatError('Title and content are required', 'INVALID_REQUEST'));
     return;
   }
-
-  if (!content || typeof content !== 'string') {
-    res.status(400).json({
-      error: {
-        message: 'Content is required and must be a string',
-        code: 'INVALID_REQUEST',
-      },
-    });
-    return;
-  }
-
   const note = noteStore.updateNote(id, title, content);
   if (!note) {
-    res.status(404).json({
-      error: {
-        message: 'Note not found',
-        code: 'NOT_FOUND',
-      },
-    });
+    res.status(404).json(formatError('Note not found', 'NOT_FOUND'));
     return;
   }
-  res.status(200).json(note);
+  res.json(note);
 }
 
-export function deleteNoteHandler(req: Request, res: Response): void {
+export function deleteNote(req: Request, res: Response): void {
   const { id } = req.params;
   const deleted = noteStore.deleteNote(id);
   if (!deleted) {
-    res.status(404).json({
-      error: {
-        message: 'Note not found',
-        code: 'NOT_FOUND',
-      },
-    });
+    res.status(404).json(formatError('Note not found', 'NOT_FOUND'));
     return;
   }
   res.status(204).send();

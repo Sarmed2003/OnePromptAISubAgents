@@ -1,10 +1,17 @@
 import { Router } from 'express';
-import { getNotesHandler, getNoteByIdHandler, createNoteHandler, updateNoteHandler, deleteNoteHandler } from '../handlers/notes';
+import { getHealth } from '../handlers/health';
+import { getAllNotes, getNoteById, createNote, updateNote, deleteNote } from '../handlers/notes';
 
-export const router = Router();
+const router = Router();
 
-router.get('/notes', getNotesHandler);
-router.post('/notes', createNoteHandler);
-router.get('/notes/:id', getNoteByIdHandler);
-router.put('/notes/:id', updateNoteHandler);
-router.delete('/notes/:id', deleteNoteHandler);
+// Health check endpoint
+router.get('/health', getHealth);
+
+// Notes endpoints
+router.get('/api/notes', getAllNotes);
+router.post('/api/notes', createNote);
+router.get('/api/notes/:id', getNoteById);
+router.put('/api/notes/:id', updateNote);
+router.delete('/api/notes/:id', deleteNote);
+
+export default router;
