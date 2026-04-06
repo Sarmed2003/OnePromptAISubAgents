@@ -1,11 +1,10 @@
 import { Request, Response } from 'express';
 import { HealthResponse } from '../types/index';
-import { getCurrentTimestamp } from '../lib/utils';
 
-export function healthHandler(req: Request, res: Response): void {
+export async function getHealth(req: Request, res: Response): Promise<void> {
   const response: HealthResponse = {
-    status: 'healthy',
-    timestamp: getCurrentTimestamp()
+    status: 'ok',
+    timestamp: new Date().toISOString()
   };
-  res.json(response);
+  res.status(200).json(response);
 }
