@@ -1,20 +1,30 @@
 import express, { Express } from 'express';
 import { loggingMiddleware } from './middleware/logging';
 import { authMiddleware } from './middleware/auth';
-import { errorHandler } from './middleware/errorHandler';
-import routes from './routes';
+import { errorHandlerMiddleware } from './middleware/errorHandler';
+import { healthHandler } from './handlers/health';
+import { router } from './routes/index';
 
-const app: Express = express();
+export function createApp(): Express {
+  const app = express();
 
-// Middleware stack in order
-app.use(loggingMiddleware);
-app.use(authMiddleware);
-app.use(express.json());
+  // Body parsing middleware
+  app.use(express.json());
 
-// Routes
-app.use(routes);
+  // Logging middleware
+  app.use(loggingMiddleware);
 
-// Error handling middleware (must be last)
-app.use(errorHandler);
+  // Authentication middleware
+  app.use(authMiddleware);
 
-export default app;
+  // Health check endpoint
+  app.get('/health', healthHandler);
+
+  // API routes
+  app.use('/api', router);
+
+  // Error handling middleware (must be last)
+  app.use(errorHandlerMiddleware);
+
+  return app;
+}

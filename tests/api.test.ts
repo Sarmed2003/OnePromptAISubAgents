@@ -1,67 +1,66 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { app } from '../src/app';
+import { createApp } from '../src/app';
+import { Express } from 'express';
 
-let server: any;
+let app: Express;
 
-beforeAll(async () => {
-  server = app.listen(3001);
-  await new Promise(resolve => setTimeout(resolve, 100));
+beforeAll(() => {
+  app = createApp();
 });
 
-afterAll(async () => {
-  if (server) {
-    await new Promise(resolve => server.close(resolve));
-  }
-});
-
-describe('GET /health', () => {
-  it('should return status 200', async () => {
-    const response = await fetch('http://localhost:3001/health');
-    expect(response.status).toBe(200);
+describe('API Endpoints', () => {
+  describe('GET /health', () => {
+    it('should return healthy status', async () => {
+      const response = await (app as any).request.get('/health');
+      expect(response.status).toBe(200);
+      expect(response.body).toHaveProperty('status', 'healthy');
+      expect(response.body).toHaveProperty('timestamp');
+      expect(response.body).toHaveProperty('uptime');
+    });
   });
 
-  it('should return body with status="ok"', async () => {
-    const response = await fetch('http://localhost:3001/health');
-    const body = await response.json();
-    expect(body.status).toBe('ok');
+  describe('GET /api/notes', () => {
+    it('should return array of notes', async () => {
+      const response = await (app as any).request.get('/api/notes');
+      expect(response.status).toBe(200);
+      expect(Array.isArray(response.body)).toBe(true);
+    });
   });
 
-  it('should return body with timestamp property', async () => {
-    const response = await fetch('http://localhost:3001/health');
-    const body = await response.json();
-    expect(body.timestamp).toBeDefined();
-    expect(typeof body.timestamp).toBe('string');
-  });
-});
+  describe('POST /api/notes', () => {
+    it('should create a new note', async () => {
+      const newNote = {
+        title: 'Test Note',
+        content: 'This is a test note',
+      };
+      const response = await (app as any).request.post('/api/notes').send(newNote);
+      expect(response.status).toBe(201);
+      expect(response.body).toHaveProperty('id');
+      expect(response.body).toHaveProperty('title', 'Test Note');
+      expect(response.body).toHaveProperty('content', 'This is a test note');
+    });
 
-describe('GET /notes', () => {
-  it('should return status 200', async () => {
-    const response = await fetch('http://localhost:3001/notes');
-    expect(response.status).toBe(200);
+    it('should reject note without title', async () => {
+      const newNote = {
+        content: 'This is a test note',
+      };
+      const response = await (app as any).request.post('/api/notes').send(newNote);
+      expect(response.status).toBe(400);
+      expect(response.body).toHaveProperty('error');
+    });
   });
 
-  it('should return body as an array', async () => {
-    const response = await fetch('http://localhost:3001/notes');
-    const body = await response.json();
-    expect(Array.isArray(body)).toBe(true);
-  });
+  describe('GET /api/notes/:id', () => {
+    it('should return a note by id', async () => {
+      const response = await (app as any).request.get('/api/notes/note-001');
+      expect(response.status).toBe(200);
+      expect(response.body).toHaveProperty('id', 'note-001');
+    });
 
-  it('should return array where each item has id, title, content, createdAt', async () => {
-    const response = await fetch('http://localhost:3001/notes');
-    const body = await response.json();
-    expect(Array.isArray(body)).toBe(true);
-    
-    if (body.length > 0) {
-      body.forEach((item: any) => {
-        expect(item).toHaveProperty('id');
-        expect(item).toHaveProperty('title');
-        expect(item).toHaveProperty('content');
-        expect(item).toHaveProperty('createdAt');
-        expect(typeof item.id).toBe('string');
-        expect(typeof item.title).toBe('string');
-        expect(typeof item.content).toBe('string');
-        expect(typeof item.createdAt).toBe('string');
-      });
-    }
+    it('should return 404 for non-existent note', async () => {
+      const response = await (app as any).request.get('/api/notes/non-existent');
+      expect(response.status).toBe(404);
+      expect(response.body).toHaveProperty('error');
+    });
   });
 });

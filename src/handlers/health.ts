@@ -1,23 +1,14 @@
-import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
+import { Request, Response } from 'express';
+import { HealthResponse } from '../types/index';
 
-export interface HealthResponse {
-  status: string;
-  timestamp: string;
-}
+const startTime = Date.now();
 
-export const healthHandler = (
-  _event: APIGatewayProxyEvent
-): APIGatewayProxyResult => {
+export function healthHandler(req: Request, res: Response): void {
+  const uptime = Math.floor((Date.now() - startTime) / 1000);
   const response: HealthResponse = {
-    status: 'ok',
+    status: 'healthy',
     timestamp: new Date().toISOString(),
+    uptime,
   };
-
-  return {
-    statusCode: 200,
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(response),
-  };
-};
+  res.status(200).json(response);
+}

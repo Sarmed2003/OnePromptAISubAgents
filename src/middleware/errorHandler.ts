@@ -1,32 +1,28 @@
 import { Request, Response, NextFunction } from 'express';
 
-interface ErrorWithStatus extends Error {
-  status?: number;
+export class AppError extends Error {
+  constructor(public message: string, public code: string, public statusCode: number) {
+    super(message);
+    this.name = 'AppError';
+  }
 }
 
-export const errorHandler = (
-  err: ErrorWithStatus,
-  _req: Request,
-  res: Response,
-  _next: NextFunction
-): void => {
-  const status = err.status || 500;
-  const message = err.message || 'Internal server error';
+export function errorHandlerMiddleware(err: Error, _req: Request, res: Response, _next: NextFunction): void {
+  if (err instanceof AppError) {
+    res.status(err.statusCode).json({
+      error: {
+        message: err.message,
+        code: err.code,
+      },
+    });
+    return;
+  }
 
-  console.error(
-    JSON.stringify({
-      timestamp: new Date().toISOString(),
-      level: 'error',
-      message,
-      stack: err.stack,
-      status,
-      type: 'error',
-    })
-  );
-
-  res.status(status).json({
-    status: 'error',
-    error: message,
-    code: status === 404 ? 'NOT_FOUND' : status === 500 ? 'INTERNAL_ERROR' : 'ERROR',
+  console.error('Unexpected error:', err);
+  res.status(500).json({
+    error: {
+      message: 'Internal server error',
+      code: 'INTERNAL_SERVER_ERROR',
+    },
   });
-};
+}
