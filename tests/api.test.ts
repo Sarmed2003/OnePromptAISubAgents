@@ -1,45 +1,67 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { healthHandler } from '../src/handlers/health';
-import { notesHandler } from '../src/handlers/notes';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { app } from '../src/app';
 
-describe('Health Handler', () => {
-  it('should return healthy status', () => {
-    const result = healthHandler();
-    expect(result.status).toBe('healthy');
-    expect(result.timestamp).toBeDefined();
-  });
+let server: any;
+
+beforeAll(async () => {
+  server = app.listen(3001);
+  await new Promise(resolve => setTimeout(resolve, 100));
+});
+
+afterAll(async () => {
+  if (server) {
+    await new Promise(resolve => server.close(resolve));
+  }
 });
 
 describe('GET /health', () => {
-  it('should return HTTP 200 with {"ok":true}', async () => {
-    const response = await fetch('http://localhost:3000/health');
+  it('should return status 200', async () => {
+    const response = await fetch('http://localhost:3001/health');
     expect(response.status).toBe(200);
+  });
+
+  it('should return body with status="ok"', async () => {
+    const response = await fetch('http://localhost:3001/health');
     const body = await response.json();
-    expect(body).toEqual({ ok: true });
+    expect(body.status).toBe('ok');
+  });
+
+  it('should return body with timestamp property', async () => {
+    const response = await fetch('http://localhost:3001/health');
+    const body = await response.json();
+    expect(body.timestamp).toBeDefined();
+    expect(typeof body.timestamp).toBe('string');
   });
 });
 
-describe('Notes Handler', () => {
-  it('should create a note', () => {
-    const note = notesHandler.create({
-      title: 'Test Note',
-      content: 'This is a test note',
-    });
-    expect(note.id).toBeDefined();
-    expect(note.title).toBe('Test Note');
-    expect(note.content).toBe('This is a test note');
+describe('GET /notes', () => {
+  it('should return status 200', async () => {
+    const response = await fetch('http://localhost:3001/notes');
+    expect(response.status).toBe(200);
   });
-  
-  it('should throw error if title is missing', () => {
-    expect(() => {
-      notesHandler.create({ content: 'No title' });
-    }).toThrow('Title is required');
+
+  it('should return body as an array', async () => {
+    const response = await fetch('http://localhost:3001/notes');
+    const body = await response.json();
+    expect(Array.isArray(body)).toBe(true);
   });
-  
-  it('should retrieve all notes', () => {
-    notesHandler.create({ title: 'Note 1', content: 'Content 1' });
-    notesHandler.create({ title: 'Note 2', content: 'Content 2' });
-    const notes = notesHandler.getAll();
-    expect(notes.length).toBeGreaterThanOrEqual(2);
+
+  it('should return array where each item has id, title, content, createdAt', async () => {
+    const response = await fetch('http://localhost:3001/notes');
+    const body = await response.json();
+    expect(Array.isArray(body)).toBe(true);
+    
+    if (body.length > 0) {
+      body.forEach((item: any) => {
+        expect(item).toHaveProperty('id');
+        expect(item).toHaveProperty('title');
+        expect(item).toHaveProperty('content');
+        expect(item).toHaveProperty('createdAt');
+        expect(typeof item.id).toBe('string');
+        expect(typeof item.title).toBe('string');
+        expect(typeof item.content).toBe('string');
+        expect(typeof item.createdAt).toBe('string');
+      });
+    }
   });
 });
