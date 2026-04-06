@@ -2,163 +2,151 @@
 
 ## Overview
 
-This is a Node.js TypeScript API platform with both CLI game components and backend services. The project is containerized and ready for deployment.
+This is a containerized Node.js/TypeScript application with both a backend API and frontend static assets. It uses Docker for containerization and GitHub Actions for CI/CD.
 
-## Tech Stack
-
-- **Runtime**: Node.js 20 (Alpine)
-- **Language**: TypeScript
-- **Build Tool**: npm
-- **Testing**: Vitest
-- **Linting**: ESLint
-- **Container**: Docker
-- **CI/CD**: GitHub Actions
-
-## Local Development
-
-### Prerequisites
+## Prerequisites
 
 - Node.js 20+
-- npm 10+
-- Docker & Docker Compose (optional)
+- Docker & Docker Compose (for local development)
+- GitHub repository with Actions enabled
+
+## Local Development
 
 ### Setup
 
 ```bash
-# Install dependencies
-npm ci
-
-# Copy environment variables
+npm install
 cp .env.example .env
-
-# Run development server
-npm run dev
-
-# Run tests
-npm test
-
-# Run linting
-npm run lint
-
-# Type checking
-npm run type-check
 ```
 
-### Docker Compose
+### Running Locally
+
+**Without Docker:**
+```bash
+npm run build
+npm start
+```
+
+**With Docker Compose:**
+```bash
+docker-compose up
+```
+
+Application will be available at `http://localhost:3000`
+
+### Health Check
 
 ```bash
-# Start development environment
-docker-compose up -d
-
-# View logs
-docker-compose logs -f app
-
-# Stop services
-docker-compose down
+node scripts/health-check.js
 ```
 
 ## CI/CD Pipeline
 
-The GitHub Actions workflow runs on every push and pull request:
+The GitHub Actions workflow runs on every push to `main` and pull requests:
 
-1. **Lint**: ESLint validation
-2. **Type Check**: TypeScript compilation check
-3. **Test**: Vitest with coverage reporting to Codecov
-4. **Build**: TypeScript compilation to JavaScript
-5. **Docker Build**: Multi-stage Docker image build (cache only)
-6. **Deploy**: Automatic deployment on main branch merge
+1. **Lint** (`npm run lint`) - ESLint validation
+2. **Type Check** (`npm run type-check`) - TypeScript compilation check
+3. **Test** (`npm run test`) - Vitest unit tests
+4. **Build** (`npm run build`) - Production build
+5. **Docker Build** - Multi-stage Docker image build (main branch only)
 
-### Required Secrets
+## Docker Deployment
 
-Configure the following secrets in GitHub Actions:
-
-- `AUTH_SECRET`: Authentication secret for signing tokens (stored in AWS Secrets Manager or GitHub Secrets, injected at runtime)
-- `AWS_ROLE_ARN`: For AWS deployments
-- `AWS_REGION`: Target AWS region
-- `DEPLOY_KEY`: SSH key for deployment servers
-
-**Important**: Never commit `AUTH_SECRET` or any sensitive credentials to version control. Use secure secret management systems:
-
-- **AWS Secrets Manager**: Recommended for AWS deployments
-- **GitHub Secrets**: For GitHub Actions CI/CD
-- **HashiCorp Vault**: For multi-environment deployments
-- **Environment-specific configuration**: Use different secrets per environment (dev, staging, production)
-
-## Production Deployment
-
-### Docker
+### Building the Image
 
 ```bash
-# Build image
-docker build -t api-platform:latest .
+docker build -t app:latest .
+```
 
-# Run container with secure secret injection
-docker run -p 3000:3000 \
-  -e NODE_ENV=production \
-  -e PORT=3000 \
-  -e AUTH_SECRET="${AUTH_SECRET}" \
-  api-platform:latest
+### Running the Container
+
+```bash
+docker run -p 3000:3000 -e NODE_ENV=production app:latest
 ```
 
 ### Environment Variables
 
-Set the following in production:
+Configure via `.env` file or Docker environment:
 
-```bash
-NODE_ENV=production
-PORT=3000
-LOG_LEVEL=warn
-CORS_ORIGIN=https://yourdomain.com
-AUTH_ENABLED=true
-# AUTH_SECRET must be injected from secure secret management, never hardcoded
-```
+- `NODE_ENV` - Set to `production` for production deployments
+- `PORT` - Application port (default: 3000)
+- `LOG_LEVEL` - Logging level (default: info)
+- `API_TIMEOUT` - API request timeout in ms (default: 30000)
 
-See `.env.example` for all available options.
+## Production Deployment
 
-### Secure Secret Management
+### Option 1: Cloud Container Registry (ECR, Docker Hub, GHCR)
 
-#### AWS Secrets Manager
+1. Configure Docker registry credentials in GitHub Secrets
+2. Update `.github/workflows/deploy.yml` with your registry
+3. Push to main branch to trigger automated deployment
 
-```bash
-# Store secret
-aws secretsmanager create-secret --name api-platform/auth-secret --secret-string "your-secret-key"
+### Option 2: Kubernetes
 
-# Retrieve and inject into container
-AUTH_SECRET=$(aws secretsmanager get-secret-value --secret-id api-platform/auth-secret --query SecretString --output text)
-docker run -p 3000:3000 \
-  -e NODE_ENV=production \
-  -e AUTH_SECRET="${AUTH_SECRET}" \
-  api-platform:latest
-```
-
-#### GitHub Actions
-
-1. Add secret to GitHub repository settings: Settings → Secrets and variables → Actions
-2. Create `AUTH_SECRET` as a repository secret
-3. Use in workflow:
+Example deployment manifest:
 
 ```yaml
-env:
-  AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-app
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: api-app
+  template:
+    metadata:
+      labels:
+        app: api-app
+    spec:
+      containers:
+      - name: app
+        image: app:latest
+        ports:
+        - containerPort: 3000
+        env:
+        - name: NODE_ENV
+          value: "production"
+        - name: PORT
+          value: "3000"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 3000
+          initialDelaySeconds: 10
+          periodSeconds: 30
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 3000
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
 ```
 
-#### Kubernetes (if applicable)
+### Option 3: Traditional VPS/VM
+
+1. SSH into your server
+2. Install Docker and Docker Compose
+3. Clone repository and run: `docker-compose up -d`
+4. Configure reverse proxy (nginx/Apache) to forward requests to localhost:3000
+
+## Monitoring & Logs
+
+### Docker Logs
 
 ```bash
-# Create secret
-kubectl create secret generic api-platform-secrets \
-  --from-literal=auth-secret="your-secret-key"
-
-# Reference in deployment manifest
-env:
-  - name: AUTH_SECRET
-    valueFrom:
-      secretKeyRef:
-        name: api-platform-secrets
-        key: auth-secret
+docker logs -f <container_id>
 ```
 
-### Health Checks
+### Health Endpoint
 
 The application exposes a health check endpoint:
 
@@ -166,122 +154,76 @@ The application exposes a health check endpoint:
 curl http://localhost:3000/health
 ```
 
-The Docker container includes an automatic health check that:
-- Starts after 5 seconds
-- Runs every 30 seconds
-- Allows 3 seconds per check
-- Retries up to 3 times before marking unhealthy
+## Graceful Shutdown
 
-### Graceful Shutdown
+The application handles `SIGTERM` and `SIGINT` signals for graceful shutdown:
 
-The application handles `SIGTERM` and `SIGINT` signals for graceful shutdown. Containers will have 30 seconds to terminate before force kill.
-
-## Monitoring
-
-### Logs
-
-Logs are written to stdout and can be captured by container orchestration platforms:
-
-```bash
-# View logs
-docker logs <container-id>
-
-# Stream logs
-docker logs -f <container-id>
-```
-
-### Health Endpoint
-
-Monitor application health at `/health` endpoint:
-
-```bash
-GET /health
-Response: { "status": "ok" }
-```
+- Stops accepting new connections
+- Waits for existing requests to complete
+- Closes database connections
+- Exits cleanly
 
 ## Scaling
 
-The application is stateless and can be scaled horizontally:
+### Docker Compose
 
-- Multiple container instances can run simultaneously
-- No shared state between instances
-- Use a load balancer to distribute traffic
-- Implement connection pooling for external services
+```bash
+docker-compose up -d --scale app=3
+```
 
-## Security
+### Kubernetes
 
-- Non-root user (nodejs:nodejs) runs the application
-- Minimal Alpine base image reduces attack surface
-- Dependencies pinned in package-lock.json
-- **No secrets in Docker image** — all sensitive values injected at runtime
-- Environment variables for sensitive configuration
-- Secrets managed through secure secret management systems (AWS Secrets Manager, GitHub Secrets, etc.)
-- Regular security audits of dependencies (`npm audit`)
-- CORS properly configured for production domains
+```bash
+kubectl scale deployment api-app --replicas=3
+```
 
 ## Troubleshooting
 
-### Container won't start
+### Container fails to start
 
-```bash
-# Check logs
-docker logs <container-id>
+1. Check logs: `docker logs <container_id>`
+2. Verify environment variables are set
+3. Ensure port 3000 is not in use
 
-# Verify health check
-docker ps --filter "id=<container-id>"
+### Health check fails
 
-# Test manually
-docker run -it api-platform:latest /bin/sh
-```
+1. Verify `/health` endpoint is responding
+2. Check application logs for errors
+3. Verify network connectivity
 
-### Port already in use
+### Build failures in CI
 
-```bash
-# Change port
-docker run -p 8080:3000 api-platform:latest
+1. Check GitHub Actions logs
+2. Verify Node.js version compatibility
+3. Ensure all dependencies are declared in package.json
 
-# Or set PORT env var
-docker run -e PORT=8080 -p 8080:8080 api-platform:latest
-```
+## Rollback Procedure
 
-### High memory usage
+1. Identify the previous stable image tag
+2. Update deployment to use previous image
+3. Monitor application health
+4. Investigate root cause of failed deployment
 
-- Check for memory leaks in application code
-- Monitor with: `docker stats <container-id>`
-- Set memory limits: `docker run -m 512m api-platform:latest`
+## Security Considerations
 
-### Missing AUTH_SECRET error
-
-If the application fails with an authentication error:
-
-1. Verify `AUTH_SECRET` is set in your secret management system
-2. Confirm the environment variable is injected into the container
-3. Check that the secret value is not empty or malformed
-4. Review application logs for specific error details
+- Run container as non-root user (nodejs:1001)
+- Keep base image updated (node:20-alpine)
+- Scan images for vulnerabilities: `docker scan app:latest`
+- Use environment variables for secrets (never commit to repo)
+- Enable HTTPS in production via reverse proxy
+- Implement rate limiting and request validation
 
 ## Performance Optimization
 
-1. **Build Cache**: Docker layer caching is optimized in multi-stage build
-2. **Dependencies**: Only production dependencies in final image
-3. **Base Image**: Alpine Linux is minimal (~5MB)
-4. **Node Heap**: Set `--max-old-space-size` if needed
+- Multi-stage Docker build reduces image size
+- Alpine base image (~150MB vs ~900MB for full Node)
+- Layer caching in CI/CD for faster builds
+- Health checks configured for fast recovery
+- Non-root user reduces attack surface
 
-## Rollback
+## Support
 
-To rollback to a previous version:
-
-```bash
-# Use git tags
-git checkout v1.0.0
-git push origin v1.0.0
-
-# GitHub Actions will deploy the tagged version
-```
-
-## Additional Resources
-
-- [Node.js Best Practices](https://nodejs.org/en/docs/guides/nodejs-docker-webapp/)
-- [Docker Documentation](https://docs.docker.com/)
-- [GitHub Actions Documentation](https://docs.github.com/en/actions)
-- [AWS Secrets Manager Documentation](https://docs.aws.amazon.com/secretsmanager/)
-- [OWASP: Secrets Management](https://cheatsheetseries.owasp.org/cheatsheets/Secrets_Management_Cheat_Sheet.html)
+For issues or questions, refer to:
+- Application README.md
+- GitHub Actions logs
+- Docker documentation: https://docs.docker.com

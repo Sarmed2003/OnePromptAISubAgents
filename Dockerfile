@@ -18,7 +18,10 @@ COPY package*.json ./
 RUN npm ci --omit=dev && npm cache clean --force
 
 COPY --from=builder /app/dist ./dist
-COPY --chown=nodejs:nodejs . .
+COPY --chown=nodejs:nodejs scripts ./scripts
+COPY --chown=nodejs:nodejs css ./css
+COPY --chown=nodejs:nodejs js ./js
+COPY --chown=nodejs:nodejs index.html ./
 
 USER nodejs
 
