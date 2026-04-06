@@ -1,10 +1,6 @@
-import { Request, Response } from 'express';
-import { HealthResponse } from '../types/index';
-
-export function healthHandler(req: Request, res: Response<HealthResponse>): void {
-  const response: HealthResponse = {
+export function healthHandler(): { status: string; timestamp: string } {
+  return {
     status: 'healthy',
     timestamp: new Date().toISOString(),
   };
-  res.json(response);
 }

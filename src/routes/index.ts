@@ -1,10 +1,18 @@
-import { Express } from 'express';
+import { Router, Request, Response } from 'express';
 import { healthHandler } from '../handlers/health';
-import { getNotesHandler, createNoteHandler } from '../handlers/notes';
-import { authMiddleware } from '../middleware/auth';
+import { notesHandler } from '../handlers/notes';
 
-export function setupRoutes(app: Express): void {
-  app.get('/health', healthHandler);
-  app.get('/notes', getNotesHandler);
-  app.post('/notes', authMiddleware, createNoteHandler);
-}
+export const routes = Router();
+
+routes.get('/health', (_req: Request, res: Response) => {
+  res.json(healthHandler());
+});
+
+routes.get('/notes', (_req: Request, res: Response) => {
+  res.json(notesHandler.getAll());
+});
+
+routes.post('/notes', (req: Request, res: Response) => {
+  const note = notesHandler.create(req.body);
+  res.status(201).json(note);
+});

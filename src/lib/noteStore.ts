@@ -1,22 +1,39 @@
 import { Note } from '../types/index';
+import { generateId } from './utils';
 
-const store: Note[] = [
-  {
-    id: '1',
-    title: 'Sample Note',
-    content: 'This is a demo note.',
-    createdAt: new Date().toISOString(),
-  },
-];
-
-export function getAllNotes(): Note[] {
-  return store;
+class NoteStore {
+  private notes: Map<string, Note> = new Map();
+  
+  getAll(): Note[] {
+    return Array.from(this.notes.values());
+  }
+  
+  getById(id: string): Note | undefined {
+    return this.notes.get(id);
+  }
+  
+  create(data: Omit<Note, 'id' | 'createdAt'>): Note {
+    const note: Note = {
+      id: generateId(),
+      createdAt: new Date().toISOString(),
+      ...data,
+    };
+    this.notes.set(note.id, note);
+    return note;
+  }
+  
+  update(id: string, data: Partial<Note>): Note | undefined {
+    const note = this.notes.get(id);
+    if (!note) return undefined;
+    
+    const updated = { ...note, ...data, id: note.id, createdAt: note.createdAt };
+    this.notes.set(id, updated);
+    return updated;
+  }
+  
+  delete(id: string): boolean {
+    return this.notes.delete(id);
+  }
 }
 
-export function addNote(note: Note): void {
-  store.push(note);
-}
-
-export function getNoteById(id: string): Note | undefined {
-  return store.find((note) => note.id === id);
-}
+export const noteStore = new NoteStore();
