@@ -9,7 +9,7 @@ export function getAllNotes(_req: AuthenticatedRequest, res: Response): void {
 }
 
 export function getNoteById(req: AuthenticatedRequest, res: Response): void {
-  const { id } = req.params;
+  const { id } = req.params as { id: string };
   const note = noteStore.getNoteById(id);
   if (!note) {
     res.status(404).json(formatError('Note not found', 'NOT_FOUND'));
@@ -19,8 +19,8 @@ export function getNoteById(req: AuthenticatedRequest, res: Response): void {
 }
 
 export function createNote(req: AuthenticatedRequest, res: Response): void {
-  const { title, content } = req.body;
-  if (!title || !content) {
+  const { title, content } = req.body as { title: unknown; content: unknown };
+  if (!title || !content || typeof title !== 'string' || typeof content !== 'string') {
     res.status(400).json(formatError('Title and content are required', 'INVALID_REQUEST'));
     return;
   }
@@ -30,9 +30,9 @@ export function createNote(req: AuthenticatedRequest, res: Response): void {
 }
 
 export function updateNote(req: AuthenticatedRequest, res: Response): void {
-  const { id } = req.params;
-  const { title, content } = req.body;
-  if (!title || !content) {
+  const { id } = req.params as { id: string };
+  const { title, content } = req.body as { title: unknown; content: unknown };
+  if (!title || !content || typeof title !== 'string' || typeof content !== 'string') {
     res.status(400).json(formatError('Title and content are required', 'INVALID_REQUEST'));
     return;
   }
@@ -45,7 +45,7 @@ export function updateNote(req: AuthenticatedRequest, res: Response): void {
 }
 
 export function deleteNote(req: AuthenticatedRequest, res: Response): void {
-  const { id } = req.params;
+  const { id } = req.params as { id: string };
   const deleted = noteStore.deleteNote(id);
   if (!deleted) {
     res.status(404).json(formatError('Note not found', 'NOT_FOUND'));
