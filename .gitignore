@@ -12,6 +12,10 @@ build/
 .eggs/
 *.log
 target-repo/
+sandboxes/
+vault/.obsidian/
+vault/runs/*
+!vault/runs/README.md
 .mypy_cache/
 .pytest_cache/
 node_modules/
