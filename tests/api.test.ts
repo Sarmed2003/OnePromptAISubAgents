@@ -1,16 +1,33 @@
-import { describe, it, expect, beforeAll, afterAll, Vi } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import request from 'supertest';
 import { createApp } from '../src/app';
+import { noteStore } from '../src/lib/noteStore';
 import type { Express } from 'express';
 
 let app: Express;
+let createdNoteId: string;
 
-beforeAll(() => {
+beforeAll(async () => {
   app = createApp();
+  
+  // Initialize test data
+  try {
+    const note = await noteStore.createNote('Test Note', 'This is a test note');
+    createdNoteId = note.id;
+  } catch (err) {
+    console.error('Failed to create test note:', err);
+  }
 });
 
-afterAll(() => {
-  // Cleanup if needed
+afterAll(async () => {
+  // Cleanup test data
+  try {
+    if (createdNoteId) {
+      await noteStore.deleteNote(createdNoteId);
+    }
+  } catch (err) {
+    console.error('Failed to cleanup test note:', err);
+  }
 });
 
 describe('API Endpoints', () => {
@@ -57,13 +74,13 @@ describe('API Endpoints', () => {
 
   describe('GET /api/notes/:id', () => {
     it('should return a note by id', async () => {
-      const response = await request(app).get('/api/notes/note-001');
+      const response = await request(app).get(`/api/notes/${createdNoteId}`);
       expect(response.status).toBe(200);
-      expect(response.body).toHaveProperty('id', 'note-001');
+      expect(response.body).toHaveProperty('id', createdNoteId);
     });
 
     it('should return 404 for non-existent note', async () => {
-      const response = await request(app).get('/api/notes/non-existent');
+      const response = await request(app).get('/api/notes/non-existent-id-12345');
       expect(response.status).toBe(404);
       expect(response.body).toHaveProperty('error');
     });
