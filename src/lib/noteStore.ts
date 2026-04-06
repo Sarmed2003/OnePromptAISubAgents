@@ -19,6 +19,10 @@ class NoteStore {
       return (response.Items as Note[]) || [];
     } catch (err) {
       console.error('getAllNotes failed:', err);
+      const error = err as { name?: string; message?: string };
+      if (error.name === 'ResourceNotFoundException') {
+        return [];
+      }
       throw err;
     }
   }
@@ -38,6 +42,10 @@ class NoteStore {
       return response.Item as Note | undefined;
     } catch (err) {
       console.error('getNoteById failed:', err);
+      const error = err as { name?: string; message?: string };
+      if (error.name === 'ResourceNotFoundException') {
+        return undefined;
+      }
       throw err;
     }
   }
@@ -70,6 +78,10 @@ class NoteStore {
       return note;
     } catch (err) {
       console.error('createNote failed:', err);
+      const error = err as { name?: string; message?: string };
+      if (error.name === 'ResourceNotFoundException') {
+        throw new Error('Notes table does not exist');
+      }
       throw err;
     }
   }
@@ -111,6 +123,10 @@ class NoteStore {
       return response.Attributes as Note | undefined;
     } catch (err) {
       console.error('updateNote failed:', err);
+      const error = err as { name?: string; message?: string };
+      if (error.name === 'ResourceNotFoundException') {
+        return undefined;
+      }
       throw err;
     }
   }
@@ -131,6 +147,10 @@ class NoteStore {
       return true;
     } catch (err) {
       console.error('deleteNote failed:', err);
+      const error = err as { name?: string; message?: string };
+      if (error.name === 'ResourceNotFoundException') {
+        return false;
+      }
       throw err;
     }
   }
