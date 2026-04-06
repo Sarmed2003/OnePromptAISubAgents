@@ -3,7 +3,7 @@ import { AuthenticatedRequest } from '../middleware/auth';
 import { noteStore } from '../lib/noteStore';
 import { formatError } from '../lib/utils';
 
-export function getAllNotes(req: AuthenticatedRequest, res: Response): void {
+export function getAllNotes(_req: AuthenticatedRequest, res: Response): void {
   const notes = noteStore.getAllNotes();
   res.json(notes);
 }
