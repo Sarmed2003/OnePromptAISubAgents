@@ -1,141 +1,78 @@
-/**
- * Collision Detection System
- * Handles collisions between player and obstacles/coins
- * Manages score updates, particle effects, and game over state
- */
-
 (function() {
-  // Track which coins have been collected this frame to prevent double-counting
-  const collidedCoins = new Set();
-  // Track which obstacles have triggered game over to prevent multiple triggers
-  const collidedObstacles = new Set();
+  var GRACE_FRAMES = 150;
 
-  /**
-   * Check collisions between player and obstacles/coins
-   * Called once per frame by the game loop
-   */
+  var PLAYER_HALF_W = 0.45;
+  var PLAYER_HALF_D = 0.3;
+  var OBS_HALF_W = 0.8;
+  var OBS_HALF_D = 0.8;
+  var COIN_HALF_W = 0.4;
+  var COIN_HALF_D = 0.4;
+
+  function getWorldX(mesh) {
+    if (mesh.parent) {
+      return mesh.parent.position.x + mesh.position.x;
+    }
+    return mesh.position.x;
+  }
+
+  function getWorldZ(mesh) {
+    if (mesh.parent) {
+      return mesh.parent.position.z + mesh.position.z;
+    }
+    return mesh.position.z;
+  }
+
+  function aabbOverlap(px, pz, phw, phd, ox, oz, ohw, ohd) {
+    return Math.abs(px - ox) < (phw + ohw) && Math.abs(pz - oz) < (phd + ohd);
+  }
+
   window.checkCollisions = function() {
-    // Validate required globals exist
-    if (!window.gameState) {
-      console.warn('gameState not initialized');
-      return;
-    }
+    if (!window.gameState || window.gameState.isGameOver) return;
+    if (!window.player || !window.player.mesh) return;
+    if (window.gameState.frameCount < GRACE_FRAMES) return;
 
-    if (!window.player || !window.player.mesh) {
-      console.warn('Player mesh not initialized');
-      return;
-    }
+    var playerMesh = window.player.mesh;
+    var px = getWorldX(playerMesh);
+    var pz = getWorldZ(playerMesh);
 
-    // If game is already over, don't process new collisions
-    if (window.gameState.isGameOver) {
-      return;
-    }
+    if (window.obstacles && window.obstacles.length > 0) {
+      for (var i = 0; i < window.obstacles.length; i++) {
+        var obs = window.obstacles[i];
+        var obsMesh = obs ? (obs.mesh || obs) : null;
+        if (!obsMesh || !obsMesh.position) continue;
 
-    const playerMesh = window.player.mesh;
-
-    // Clear collision tracking for this frame
-    collidedCoins.clear();
-    collidedObstacles.clear();
-
-    // Check obstacle collisions
-    if (window.obstacles && Array.isArray(window.obstacles)) {
-      checkObstacleCollisions(playerMesh);
-    }
-
-    // Check coin collisions (only if game is not over)
-    if (!window.gameState.isGameOver && window.coins && Array.isArray(window.coins)) {
-      checkCoinCollisions(playerMesh);
-    }
-  };
-
-  /**
-   * Check collisions between player and obstacles
-   * @param {BABYLON.Mesh} playerMesh - The player mesh
-   */
-  function checkObstacleCollisions(playerMesh) {
-    for (let i = 0; i < window.obstacles.length; i++) {
-      const obstacle = window.obstacles[i];
-
-      // Validate obstacle has a mesh
-      if (!obstacle || !obstacle.mesh) {
-        continue;
-      }
-
-      // Check if meshes intersect
-      if (playerMesh.intersectsMesh(obstacle.mesh, false)) {
-        // Prevent multiple game over triggers from the same obstacle
-        if (!collidedObstacles.has(i)) {
-          collidedObstacles.add(i);
+        if (aabbOverlap(px, pz, PLAYER_HALF_W, PLAYER_HALF_D, obsMesh.position.x, obsMesh.position.z, OBS_HALF_W, OBS_HALF_D)) {
           triggerGameOver();
-          // Exit early since game is now over
           return;
         }
       }
     }
-  }
 
-  /**
-   * Check collisions between player and coins
-   * @param {BABYLON.Mesh} playerMesh - The player mesh
-   */
-  function checkCoinCollisions(playerMesh) {
-    // Iterate backwards to safely remove coins during iteration
-    for (let i = window.coins.length - 1; i >= 0; i--) {
-      const coin = window.coins[i];
+    if (window.coins && window.coins.length > 0) {
+      for (var j = window.coins.length - 1; j >= 0; j--) {
+        var coin = window.coins[j];
+        var coinMesh = coin ? (coin.mesh || coin) : null;
+        if (!coinMesh || !coinMesh.position) continue;
 
-      // Validate coin has a mesh
-      if (!coin || !coin.mesh) {
-        continue;
-      }
+        if (aabbOverlap(px, pz, PLAYER_HALF_W, PLAYER_HALF_D, coinMesh.position.x, coinMesh.position.z, COIN_HALF_W, COIN_HALF_D)) {
+          var value = coin.value || 10;
+          window.gameState.score += value;
 
-      // Check if meshes intersect
-      if (playerMesh.intersectsMesh(coin.mesh, false)) {
-        // Prevent double-counting of the same coin
-        if (!collidedCoins.has(i)) {
-          collidedCoins.add(i);
-          collectCoin(coin, i);
+          if (window.spawnCoinParticles && coinMesh.position) {
+            window.spawnCoinParticles(coinMesh.position.clone());
+          }
+
+          coinMesh.dispose();
+          window.coins.splice(j, 1);
         }
       }
     }
-  }
+  };
 
-  /**
-   * Handle coin collection
-   * @param {Object} coin - The coin object with mesh and value
-   * @param {number} index - Index of coin in window.coins array
-   */
-  function collectCoin(coin, index) {
-    // Get coin value (default to 1 if not specified)
-    const coinValue = coin.value || 1;
-
-    // Update score
-    window.gameState.score += coinValue;
-
-    // Spawn particle effect at coin position
-    if (coin.mesh && coin.mesh.position && window.spawnCoinParticles) {
-      window.spawnCoinParticles(coin.mesh.position);
-    }
-
-    // Dispose of the coin mesh to free resources
-    if (coin.mesh) {
-      coin.mesh.dispose();
-    }
-
-    // Remove coin from array
-    window.coins.splice(index, 1);
-  }
-
-  /**
-   * Trigger game over state
-   */
   function triggerGameOver() {
-    // Set game over flag
     window.gameState.isGameOver = true;
-
-    // Call game over callback if it exists
-    if (window.onGameOver && typeof window.onGameOver === 'function') {
+    if (window.onGameOver) {
       window.onGameOver();
     }
   }
-
 })();

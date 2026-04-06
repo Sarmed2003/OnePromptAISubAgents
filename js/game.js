@@ -1,151 +1,106 @@
-// Game state initialization
-window.gameState = {
-  score: 0,
-  speed: 1.0,
-  isGameOver: false,
-  isPaused: false,
-  level: 1,
-  frameCount: 0,
-  elapsedTime: 0,
-  lastObstacleSpawn: 0,
-  lastCoinSpawn: 0,
-  playerLane: 1, // 0=left, 1=center, 2=right
-  playerTargetLane: 1,
-  playerLaneTransition: 0 // 0 to 1 for smooth animation
-};
+(function() {
+  window.gameState = {
+    score: 0,
+    speed: 15,
+    isGameOver: false,
+    isPaused: false,
+    frameCount: 0,
+    elapsedTime: 0,
+    turnCount: 0
+  };
 
-// Game configuration
-const GAME_CONFIG = {
-  laneWidth: 2,
-  laneSpacing: 2.5,
-  spawnDistance: 30,
-  obstacleBaseSpawnInterval: 120, // frames
-  coinBaseSpawnInterval: 80, // frames
-  maxSpawnRate: 0.3, // multiplier cap
-  speedIncreasePerFrame: 0.0008,
-  maxSpeed: 8.0,
-  laneTransitionSpeed: 0.15,
-  difficultyScaleFactor: 0.0001
-};
+  var BASE_SPEED = 16;
+  var MAX_SPEED = 50;
+  var SPEED_ACCEL = 0.12;
+  var SCORE_PER_SECOND = 5;
+  var TURN_INTERVAL = 18;
+  var nextTurnTime = TURN_INTERVAL;
+  var loopRunning = false;
 
-// Initialize game
-window.initGame = function() {
-  // Verify all required systems are loaded
-  if (!window.scene) {
-    console.error('Scene not initialized');
-    return false;
-  }
-  if (!window.player) {
-    console.error('Player not initialized');
-    return false;
-  }
-  if (!window.setupInput) {
-    console.error('Input system not initialized');
-    return false;
-  }
+  window.initGame = function() {
+    if (!window.scene || !window.engine) return false;
+    if (!window.player || !window.player.mesh) return false;
 
-  // Set up input handlers
-  window.setupInput();
+    window.gameState.score = 0;
+    window.gameState.speed = BASE_SPEED;
+    window.gameState.isGameOver = false;
+    window.gameState.isPaused = false;
+    window.gameState.frameCount = 0;
+    window.gameState.elapsedTime = 0;
+    window.gameState.turnCount = 0;
+    nextTurnTime = TURN_INTERVAL;
 
-  // Initialize game state
-  window.gameState.score = 0;
-  window.gameState.speed = 1.0;
-  window.gameState.isGameOver = false;
-  window.gameState.isPaused = false;
-  window.gameState.frameCount = 0;
-  window.gameState.elapsedTime = 0;
+    window.worldAngle = 0;
+    window.targetWorldAngle = 0;
+    if (window.worldPivot) window.worldPivot.rotation.y = 0;
 
-  // Clear previous game objects
-  if (window.clearCoins) window.clearCoins();
-  if (window.clearObstacles) window.clearObstacles();
+    if (window.clearObstacles) window.clearObstacles();
+    if (window.clearCoins) window.clearCoins();
+    if (window.resetPlayer) window.resetPlayer();
+    if (window.hideGameOverModal) window.hideGameOverModal();
+    if (window.setupInput) window.setupInput();
 
-  // Start the game loop
-  window.startGameLoop();
-
-  return true;
-};
-
-// Game over handler
-window.onGameOver = function() {
-  window.gameState.isGameOver = true;
-  if (window.showGameOverModal) {
-    window.showGameOverModal(window.gameState.score);
-  }
-};
-
-// Restart game
-window.restartGame = function() {
-  window.gameState.isGameOver = false;
-  window.gameState.isPaused = false;
-  if (window.hideGameOverModal) {
-    window.hideGameOverModal();
-  }
-  window.initGame();
-};
-
-// Main game loop
-window.startGameLoop = function() {
-  if (!window.engine || !window.scene) {
-    console.error('Engine or Scene not initialized');
-    return;
-  }
-
-  window.engine.runRenderLoop(function() {
-    const deltaTime = window.engine.getDeltaTime() / 1000; // Convert to seconds
-
-    if (!window.gameState.isPaused && !window.gameState.isGameOver) {
-      // Update game systems
-      window.gameState.frameCount++;
-      window.gameState.elapsedTime += deltaTime;
-
-      // Update speed based on difficulty
-      const speedMultiplier = 1.0 + (window.gameState.score * GAME_CONFIG.difficultyScaleFactor);
-      window.gameState.speed = Math.min(
-        1.0 + (window.gameState.frameCount * GAME_CONFIG.speedIncreasePerFrame * speedMultiplier),
-        GAME_CONFIG.maxSpeed
-      );
-
-      // Update game entities
-      if (window.updatePlayer) {
-        window.updatePlayer(deltaTime);
-      }
-      if (window.updateCoins) {
-        window.updateCoins(deltaTime);
-      }
-      if (window.updateObstacles) {
-        window.updateObstacles(deltaTime);
-      }
-      if (window.updateParticles) {
-        window.updateParticles(deltaTime);
-      }
-
-      // Check collisions
-      if (window.checkCollisions) {
-        window.checkCollisions();
-      }
-
-      // Update UI
-      if (window.updateUI) {
-        window.updateUI();
-      }
+    if (!loopRunning) {
+      startRenderLoop();
+      loopRunning = true;
     }
+    return true;
+  };
 
-    // Always render
-    window.scene.render();
-  });
+  function startRenderLoop() {
+    window.engine.runRenderLoop(function() {
+      var dt = Math.min(window.engine.getDeltaTime() / 1000, 0.05);
 
-  // Handle window resize
-  window.addEventListener('resize', function() {
-    if (window.engine) {
-      window.engine.resize();
-    }
-  });
-};
+      if (!window.gameState.isPaused && !window.gameState.isGameOver) {
+        window.gameState.frameCount++;
+        window.gameState.elapsedTime += dt;
 
-// Start game when page loads
-window.addEventListener('DOMContentLoaded', function() {
-  // Give other scripts time to initialize
-  setTimeout(function() {
+        window.gameState.speed = Math.min(
+          BASE_SPEED + window.gameState.elapsedTime * SPEED_ACCEL,
+          MAX_SPEED
+        );
+        window.gameState.score += SCORE_PER_SECOND * dt;
+
+        if (window.gameState.elapsedTime >= nextTurnTime) {
+          var dir = Math.random() < 0.5 ? -1 : 1;
+          if (window.triggerTurn) window.triggerTurn(dir);
+          window.gameState.turnCount++;
+          window.gameState.score += 25;
+          nextTurnTime = window.gameState.elapsedTime + TURN_INTERVAL + Math.random() * 8;
+        }
+
+        if (window.updatePlayer) window.updatePlayer(dt);
+        if (window.scrollGround) window.scrollGround(window.gameState.speed, dt);
+        if (window.updateObstacles) window.updateObstacles(dt);
+        if (window.updateCoins) window.updateCoins(dt);
+        if (window.updateParticles) window.updateParticles(dt);
+        if (window.checkCollisions) window.checkCollisions();
+        if (window.updateUI) window.updateUI();
+      }
+
+      if (window.updateCamera) window.updateCamera(dt);
+      window.scene.render();
+    });
+
+    window.addEventListener('resize', function() {
+      if (window.engine) window.engine.resize();
+    });
+  }
+
+  window.onGameOver = function() {
+    window.gameState.isGameOver = true;
+    if (window.showGameOverModal) window.showGameOverModal(window.gameState.score);
+  };
+
+  window.restartGame = function() {
     window.initGame();
-  }, 100);
-});
+  };
+
+  setTimeout(function() {
+    if (window.scene && window.engine && window.player && window.player.mesh) {
+      window.initGame();
+    } else {
+      setTimeout(function() { window.initGame(); }, 400);
+    }
+  }, 250);
+})();

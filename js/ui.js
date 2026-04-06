@@ -1,54 +1,42 @@
-/**
- * UI System
- * Handles HUD updates, game over modal, and score display
- */
-
 (function() {
-  // Cache DOM elements
-  const scoreDisplay = document.getElementById('scoreDisplay');
-  const speedDisplay = document.getElementById('speedDisplay');
-  const gameOverModal = document.getElementById('gameOverModal');
-  const finalScoreDisplay = document.getElementById('finalScore');
+  var scoreEl = null;
+  var speedEl = null;
+  var modalEl = null;
+  var finalScoreEl = null;
 
-  /**
-   * Update the HUD display with current score and speed
-   */
+  function cacheDom() {
+    scoreEl = document.getElementById('scoreDisplay');
+    speedEl = document.getElementById('speedDisplay');
+    modalEl = document.getElementById('gameOverModal');
+    finalScoreEl = document.getElementById('finalScore');
+  }
+
   window.updateUI = function() {
-    if (!window.gameState) {
-      return;
-    }
+    if (!scoreEl) cacheDom();
+    if (!window.gameState) return;
 
-    // Update score display
-    if (scoreDisplay) {
-      scoreDisplay.textContent = 'Score: ' + Math.floor(window.gameState.score);
-    }
+    if (scoreEl) scoreEl.textContent = Math.floor(window.gameState.score);
+    if (speedEl) speedEl.textContent = (window.gameState.speed || 0).toFixed(0);
+  };
 
-    // Update speed display
-    if (speedDisplay) {
-      speedDisplay.textContent = 'Speed: ' + window.gameState.speed.toFixed(1);
+  window.showGameOverModal = function(score) {
+    if (!modalEl) cacheDom();
+    if (modalEl) {
+      if (finalScoreEl) finalScoreEl.textContent = Math.floor(score);
+      modalEl.classList.add('show');
     }
   };
 
-  /**
-   * Show the game over modal with final score
-   * @param {number} finalScore - The final score to display
-   */
-  window.showGameOverModal = function(finalScore) {
-    if (gameOverModal) {
-      if (finalScoreDisplay) {
-        finalScoreDisplay.textContent = Math.floor(finalScore);
-      }
-      gameOverModal.classList.add('show');
-    }
-  };
-
-  /**
-   * Hide the game over modal
-   */
   window.hideGameOverModal = function() {
-    if (gameOverModal) {
-      gameOverModal.classList.remove('show');
+    if (!modalEl) cacheDom();
+    if (modalEl) {
+      modalEl.classList.remove('show');
     }
   };
 
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', cacheDom);
+  } else {
+    cacheDom();
+  }
 })();

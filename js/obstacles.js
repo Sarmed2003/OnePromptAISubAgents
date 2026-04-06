@@ -1,129 +1,67 @@
-/**
- * Obstacles System
- * Manages obstacle spawning, movement, and collision detection
- */
-
 (function() {
-  // Initialize global obstacles array
   window.obstacles = [];
+  var LANE_POSITIONS = [-3, 0, 3];
+  var SPAWN_Z = 90;
+  var REMOVE_Z = -15;
+  var GRACE_FRAMES = 140;
+  var obsMat = null;
 
-  const OBSTACLE_CONFIG = {
-    WIDTH: 1.5,
-    HEIGHT: 1.5,
-    DEPTH: 1.5,
-    SPEED: 0.25,
-    SPAWN_Z: -100,
-    LANES: [-3, 0, 3],
-    REMOVE_THRESHOLD: 15,
-    COLOR: 0xFF4444
-  };
-
-  /**
-   * Create a single obstacle mesh
-   */
-  function createObstacle() {
-    if (!window.scene) {
-      console.error('Scene not initialized. Cannot create obstacle.');
-      return null;
-    }
-
-    // Create obstacle box
-    const obstacle = BABYLON.MeshBuilder.CreateBox('obstacle', {
-      width: OBSTACLE_CONFIG.WIDTH,
-      height: OBSTACLE_CONFIG.HEIGHT,
-      depth: OBSTACLE_CONFIG.DEPTH
-    }, window.scene);
-
-    // Create red material
-    const redMaterial = new BABYLON.StandardMaterial('obstacleMaterial', window.scene);
-    redMaterial.diffuse = BABYLON.Color3.FromHexString('#FF4444');
-    redMaterial.emissiveColor = new BABYLON.Color3(0.3, 0, 0);
-    obstacle.material = redMaterial;
-
-    // Set random lane position
-    const randomLane = OBSTACLE_CONFIG.LANES[Math.floor(Math.random() * OBSTACLE_CONFIG.LANES.length)];
-    obstacle.position.x = randomLane;
-    obstacle.position.z = OBSTACLE_CONFIG.SPAWN_Z;
-    obstacle.position.y = 1;
-
-    // Add properties for game logic
-    obstacle.velocity = OBSTACLE_CONFIG.SPEED;
-    obstacle.mesh = obstacle; // Reference to self
-
-    return obstacle;
+  function getMat() {
+    if (obsMat) return obsMat;
+    if (!window.scene) return null;
+    obsMat = new BABYLON.StandardMaterial('obsMat', window.scene);
+    obsMat.diffuseColor = new BABYLON.Color3(0.48, 0.30, 0.22);
+    obsMat.specularColor = new BABYLON.Color3(0.12, 0.08, 0.06);
+    obsMat.emissiveColor = new BABYLON.Color3(0.06, 0.02, 0.01);
+    return obsMat;
   }
 
-  /**
-   * Spawn a new obstacle
-   */
+  function createObs(lane) {
+    if (!window.scene || !window.worldPivot) return null;
+    var types = [
+      { w: 1.6, h: 2.2, d: 1.6 },
+      { w: 2.0, h: 1.4, d: 1.2 },
+      { w: 1.2, h: 3.0, d: 1.2 }
+    ];
+    var t = types[Math.floor(Math.random() * types.length)];
+    var mesh = BABYLON.MeshBuilder.CreateBox('obs_' + Date.now(), { width: t.w, height: t.h, depth: t.d }, window.scene);
+    mesh.position.set(LANE_POSITIONS[lane], t.h / 2, SPAWN_Z);
+    mesh.material = getMat();
+    mesh.parent = window.worldPivot;
+    return { mesh: mesh, hw: t.w / 2, hd: t.d / 2 };
+  }
+
   window.spawnObstacle = function() {
-    const newObstacle = createObstacle();
-    if (newObstacle) {
-      window.obstacles.push({
-        mesh: newObstacle,
-        velocity: OBSTACLE_CONFIG.SPEED
-      });
-    }
+    var lane = Math.floor(Math.random() * 3);
+    var obs = createObs(lane);
+    if (obs) window.obstacles.push(obs);
   };
 
-  /**
-   * Update obstacles each frame
-   * @param {number} deltaTime - Time since last frame
-   */
-  window.updateObstacles = function(deltaTime) {
-    if (!window.obstacles || !window.gameState) {
-      return;
-    }
-
-    // Increase spawn rate with difficulty
-    const spawnInterval = Math.max(
-      20,
-      60 - Math.floor(window.gameState.frameCount / 100)
-    );
-
-    // Spawn obstacles based on interval
-    if (window.gameState.frameCount % spawnInterval === 0) {
+  window.updateObstacles = function(dt) {
+    if (!window.obstacles || !window.gameState) return;
+    if (window.gameState.frameCount < GRACE_FRAMES) return;
+    var speed = window.gameState.speed || 15;
+    var fc = window.gameState.frameCount;
+    var interval = Math.max(22, 65 - Math.floor(fc / 250));
+    if ((fc - GRACE_FRAMES) % interval === 0) {
       window.spawnObstacle();
+      if (speed > 25 && Math.random() < 0.35) window.spawnObstacle();
     }
-
-    // Update each obstacle
-    for (let i = window.obstacles.length - 1; i >= 0; i--) {
-      const obstacle = window.obstacles[i];
-
-      if (!obstacle || !obstacle.mesh) {
-        continue;
-      }
-
-      // Move obstacle toward camera
-      const speedMultiplier = window.gameState.speed || 1.0;
-      obstacle.mesh.position.z += obstacle.velocity * speedMultiplier;
-
-      // Remove obstacle if it has passed the player
-      if (obstacle.mesh.position.z > OBSTACLE_CONFIG.REMOVE_THRESHOLD) {
-        obstacle.mesh.dispose();
+    for (var i = window.obstacles.length - 1; i >= 0; i--) {
+      var o = window.obstacles[i];
+      if (!o || !o.mesh) { window.obstacles.splice(i, 1); continue; }
+      o.mesh.position.z -= speed * dt;
+      if (o.mesh.position.z < REMOVE_Z) {
+        o.mesh.dispose();
         window.obstacles.splice(i, 1);
       }
     }
   };
 
-  /**
-   * Get all obstacles
-   */
-  window.getObstacles = function() {
-    return window.obstacles;
-  };
-
-  /**
-   * Clear all obstacles (useful for game reset)
-   */
   window.clearObstacles = function() {
-    if (window.obstacles) {
-      for (let obstacle of window.obstacles) {
-        if (obstacle.mesh) {
-          obstacle.mesh.dispose();
-        }
-      }
-      window.obstacles = [];
+    for (var i = 0; i < window.obstacles.length; i++) {
+      if (window.obstacles[i] && window.obstacles[i].mesh) window.obstacles[i].mesh.dispose();
     }
+    window.obstacles = [];
   };
 })();

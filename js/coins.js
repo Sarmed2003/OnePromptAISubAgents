@@ -1,137 +1,66 @@
-// Coin system for the game
-// Manages coin spawning, movement, rotation, and collection
+(function() {
+  window.coins = [];
+  var LANE_POSITIONS = [-3, 0, 3];
+  var SPAWN_Z = 95;
+  var REMOVE_Z = -12;
+  var COIN_VALUE = 10;
+  var goldMat = null;
 
-// Initialize global coins array
-window.coins = [];
-
-// Coin configuration
-const COIN_CONFIG = {
-  RADIUS: 0.4,
-  HEIGHT: 0.15,
-  SPEED: 0.25,
-  ROTATION_SPEED: 5,
-  POINT_VALUE: 10,
-  SPAWN_INTERVAL_MIN: 2000,
-  SPAWN_INTERVAL_MAX: 3000,
-  SPAWN_Z: -100,
-  LANES: [-3, 0, 3],
-  REMOVE_THRESHOLD: 15,
-  COLOR: 0xFFD700
-};
-
-// Create a single coin mesh
-function createCoin() {
-  if (!window.scene) {
-    console.error('Scene not initialized. Cannot create coin.');
-    return null;
+  function getMat() {
+    if (goldMat) return goldMat;
+    if (!window.scene) return null;
+    goldMat = new BABYLON.StandardMaterial('gMat', window.scene);
+    goldMat.diffuseColor = new BABYLON.Color3(1, 0.84, 0);
+    goldMat.specularColor = new BABYLON.Color3(1, 1, 0.7);
+    goldMat.specularPower = 64;
+    goldMat.emissiveColor = new BABYLON.Color3(0.3, 0.22, 0);
+    return goldMat;
   }
 
-  // Create a thin cylinder (disc-like) for the coin
-  const coin = BABYLON.MeshBuilder.CreateCylinder('coin', {
-    diameter: COIN_CONFIG.RADIUS * 2,
-    height: COIN_CONFIG.HEIGHT,
-    tessellation: 32
-  }, window.scene);
-
-  // Create gold material
-  const goldMaterial = new BABYLON.StandardMaterial('goldMaterial', window.scene);
-  goldMaterial.diffuse = BABYLON.Color3.FromHexString('#FFD700');
-  goldMaterial.specularColor = new BABYLON.Color3(1, 1, 0.8);
-  goldMaterial.specularPower = 64;
-  goldMaterial.emissiveColor = new BABYLON.Color3(0.2, 0.15, 0);
-  coin.material = goldMaterial;
-
-  // Set random lane position
-  const randomLane = COIN_CONFIG.LANES[Math.floor(Math.random() * COIN_CONFIG.LANES.length)];
-  coin.position.x = randomLane;
-  coin.position.z = COIN_CONFIG.SPAWN_Z;
-  coin.position.y = 1;
-
-  // Add properties for game logic
-  coin.velocity = COIN_CONFIG.SPEED;
-  coin.rotationSpeed = COIN_CONFIG.ROTATION_SPEED;
-  coin.pointValue = COIN_CONFIG.POINT_VALUE;
-  coin.collected = false;
-
-  return coin;
-}
-
-// Spawn a new coin and add to coins array
-window.spawnCoin = function() {
-  const newCoin = createCoin();
-  if (newCoin) {
-    window.coins.push(newCoin);
-  }
-};
-
-// Initialize coin spawning with randomized intervals
-let nextSpawnTime = Date.now() + getRandomSpawnInterval();
-
-function getRandomSpawnInterval() {
-  return COIN_CONFIG.SPAWN_INTERVAL_MIN +
-    Math.random() * (COIN_CONFIG.SPAWN_INTERVAL_MAX - COIN_CONFIG.SPAWN_INTERVAL_MIN);
-}
-
-// Update function to be called each frame
-window.updateCoins = function(deltaTime) {
-  if (!window.coins) {
-    return;
+  function createCoin(lane, zOff) {
+    if (!window.scene || !window.worldPivot) return null;
+    var mesh = BABYLON.MeshBuilder.CreateBox('cn_' + Date.now() + '_' + Math.random(), {
+      width: 0.55, height: 0.7, depth: 0.12
+    }, window.scene);
+    mesh.rotation.z = Math.PI / 4;
+    mesh.position.set(LANE_POSITIONS[lane], 1.5, SPAWN_Z + (zOff || 0));
+    mesh.material = getMat();
+    mesh.parent = window.worldPivot;
+    return { mesh: mesh, value: COIN_VALUE };
   }
 
-  const currentTime = Date.now();
+  var nextSpawn = 60;
 
-  // Check if it's time to spawn a new coin
-  if (currentTime >= nextSpawnTime) {
-    window.spawnCoin();
-    nextSpawnTime = currentTime + getRandomSpawnInterval();
-  }
-
-  // Update each coin
-  for (let i = window.coins.length - 1; i >= 0; i--) {
-    const coin = window.coins[i];
-
-    // Move coin toward camera (increase z)
-    coin.position.z += coin.velocity;
-
-    // Rotate around Y axis
-    coin.rotation.y += coin.rotationSpeed * deltaTime;
-
-    // Remove coin if it has passed the player
-    if (coin.position.z > COIN_CONFIG.REMOVE_THRESHOLD) {
-      coin.dispose();
-      window.coins.splice(i, 1);
+  window.updateCoins = function(dt) {
+    if (!window.coins || !window.gameState) return;
+    var speed = window.gameState.speed || 15;
+    var fc = window.gameState.frameCount;
+    if (fc >= nextSpawn) {
+      var lane = Math.floor(Math.random() * 3);
+      var count = 3 + Math.floor(Math.random() * 5);
+      for (var g = 0; g < count; g++) {
+        var c = createCoin(lane, g * 2.2);
+        if (c) window.coins.push(c);
+      }
+      nextSpawn = fc + 40 + Math.floor(Math.random() * 35);
     }
-  }
-};
+    for (var i = window.coins.length - 1; i >= 0; i--) {
+      var cn = window.coins[i];
+      if (!cn || !cn.mesh) { window.coins.splice(i, 1); continue; }
+      cn.mesh.position.z -= speed * dt;
+      cn.mesh.rotation.y += 4.0 * dt;
+      if (cn.mesh.position.z < REMOVE_Z) {
+        cn.mesh.dispose();
+        window.coins.splice(i, 1);
+      }
+    }
+  };
 
-// Collect a coin (remove it and return point value)
-window.collectCoin = function(coinIndex) {
-  if (coinIndex >= 0 && coinIndex < window.coins.length) {
-    const coin = window.coins[coinIndex];
-    const points = coin.pointValue;
-    coin.dispose();
-    window.coins.splice(coinIndex, 1);
-    return points;
-  }
-  return 0;
-};
-
-// Get all coins for collision detection
-window.getCoins = function() {
-  return window.coins;
-};
-
-// Get coin point value
-window.getCoinPointValue = function() {
-  return COIN_CONFIG.POINT_VALUE;
-};
-
-// Clean up all coins (useful for game reset)
-window.clearCoins = function() {
-  if (window.coins) {
-    for (let coin of window.coins) {
-      coin.dispose();
+  window.clearCoins = function() {
+    for (var i = 0; i < window.coins.length; i++) {
+      if (window.coins[i] && window.coins[i].mesh) window.coins[i].mesh.dispose();
     }
     window.coins = [];
-  }
-};
+    nextSpawn = 60;
+  };
+})();
