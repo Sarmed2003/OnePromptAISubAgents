@@ -1,4 +1,4 @@
-import { Response, NextFunction } from 'express';
+import { Response } from 'express';
 import { AuthenticatedRequest } from '../middleware/auth';
 import { noteStore } from '../lib/noteStore';
 import { formatError } from '../lib/utils';
