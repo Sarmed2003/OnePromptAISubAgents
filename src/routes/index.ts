@@ -13,26 +13,26 @@ const router = Router();
 
 // Health check endpoint (public)
 router.get('/health', (req: Request, res: Response, next: NextFunction) => {
-  getHealth(req, res, next);
+  getHealth(req, res);
 });
 
 // Notes endpoints
 router.get('/api/notes', (req: Request, res: Response, next: NextFunction) => {
-  getAllNotes(req, res, next);
+  getAllNotes(req, res);
 });
 
 router.post(
   '/api/notes',
   authMiddleware,
   (req: Request, res: Response, next: NextFunction) => {
-    createNote(req, res, next);
+    createNote(req, res);
   }
 );
 
 router.get(
   '/api/notes/:id',
   (req: Request, res: Response, next: NextFunction) => {
-    getNoteById(req, res, next);
+    getNoteById(req, res);
   }
 );
 
@@ -41,7 +41,7 @@ router.put(
   authMiddleware,
   resourceOwnershipMiddleware,
   (req: Request, res: Response, next: NextFunction) => {
-    updateNote(req, res, next);
+    updateNote(req, res);
   }
 );
 
@@ -50,7 +50,7 @@ router.delete(
   authMiddleware,
   resourceOwnershipMiddleware,
   (req: Request, res: Response, next: NextFunction) => {
-    deleteNote(req, res, next);
+    deleteNote(req, res);
   }
 );
 
