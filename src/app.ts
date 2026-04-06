@@ -1,12 +1,37 @@
-import express from 'express';
+import express, { Express, Request, Response, NextFunction } from 'express';
 import { loggingMiddleware } from './middleware/logging';
 import { healthHandler } from './handlers/health';
 
-const app = express();
+interface AppFactoryOptions {
+  port?: number;
+}
 
-app.use(express.json());
-app.use(loggingMiddleware);
+export function createApp(options?: AppFactoryOptions): Express {
+  const app = express();
 
-app.get('/health', healthHandler);
+  // Middleware: JSON body parsing
+  app.use(express.json());
 
-export default app;
+  // Middleware: Logging
+  app.use(loggingMiddleware);
+
+  // Routes
+  app.get('/health', healthHandler);
+
+  // Error handler middleware (must be last)
+  app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
+    console.error('Unhandled error:', err);
+    const statusCode = (err as any).statusCode || 500;
+    const message = err.message || 'Internal server error';
+    res.status(statusCode).json({
+      error: {
+        message,
+        code: 'INTERNAL_ERROR',
+      },
+    });
+  });
+
+  return app;
+}
+
+export default createApp();
