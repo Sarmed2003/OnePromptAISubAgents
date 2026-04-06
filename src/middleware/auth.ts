@@ -70,7 +70,6 @@ export function resourceOwnershipMiddleware(req: AuthenticatedRequest, res: Resp
 }
 
 function parseToken(token: string): { userId: string } {
-  const tokenSecret = process.env.TOKEN_SECRET || 'default-secret';
   const payload = token.split('.')[1];
   if (!payload) {
     throw new Error('Invalid token structure');
