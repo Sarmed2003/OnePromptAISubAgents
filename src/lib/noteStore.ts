@@ -4,7 +4,7 @@ import { generateId, getCurrentTimestamp } from './utils';
 class NoteStore {
   private notes: Map<string, Note> = new Map();
 
-  constructor(): void {
+  constructor() {
     // Initialize with sample notes
     const sampleNote1: Note = {
       id: 'note-001',
