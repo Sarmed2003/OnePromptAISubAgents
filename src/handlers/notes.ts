@@ -1,13 +1,14 @@
-import { Request, Response } from 'express';
+import { Response, NextFunction } from 'express';
+import { AuthenticatedRequest } from '../middleware/auth';
 import { noteStore } from '../lib/noteStore';
 import { formatError } from '../lib/utils';
 
-export function getAllNotes(req: Request, res: Response): void {
+export function getAllNotes(req: AuthenticatedRequest, res: Response): void {
   const notes = noteStore.getAllNotes();
   res.json(notes);
 }
 
-export function getNoteById(req: Request, res: Response): void {
+export function getNoteById(req: AuthenticatedRequest, res: Response): void {
   const { id } = req.params;
   const note = noteStore.getNoteById(id);
   if (!note) {
@@ -17,17 +18,18 @@ export function getNoteById(req: Request, res: Response): void {
   res.json(note);
 }
 
-export function createNote(req: Request, res: Response): void {
+export function createNote(req: AuthenticatedRequest, res: Response): void {
   const { title, content } = req.body;
   if (!title || !content) {
     res.status(400).json(formatError('Title and content are required', 'INVALID_REQUEST'));
     return;
   }
-  const note = noteStore.createNote(title, content);
+  const userId = req.userId || 'anonymous';
+  const note = noteStore.createNote(title, content, userId);
   res.status(201).json(note);
 }
 
-export function updateNote(req: Request, res: Response): void {
+export function updateNote(req: AuthenticatedRequest, res: Response): void {
   const { id } = req.params;
   const { title, content } = req.body;
   if (!title || !content) {
@@ -42,7 +44,7 @@ export function updateNote(req: Request, res: Response): void {
   res.json(note);
 }
 
-export function deleteNote(req: Request, res: Response): void {
+export function deleteNote(req: AuthenticatedRequest, res: Response): void {
   const { id } = req.params;
   const deleted = noteStore.deleteNote(id);
   if (!deleted) {
