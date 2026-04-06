@@ -18,3 +18,13 @@ export interface ErrorResponse {
     code: string;
   };
 }
+
+export type ApiResponse<T> = {
+  data?: T;
+  error?: ErrorResponse['error'];
+  statusCode: number;
+};
+
+export type CreateNoteRequest = Omit<Note, 'id' | 'createdAt' | 'updatedAt'>;
+
+export type UpdateNoteRequest = Partial<Omit<Note, 'id' | 'createdAt' | 'updatedAt'>>;
