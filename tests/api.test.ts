@@ -9,7 +9,7 @@ let createdNoteId: string;
 
 beforeAll(async () => {
   app = createApp();
-  
+
   // Initialize test data
   try {
     const note = await noteStore.createNote('Test Note', 'This is a test note');
