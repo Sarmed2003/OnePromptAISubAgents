@@ -6,20 +6,20 @@ services:
       context: .
       dockerfile: Dockerfile
     ports:
-      - '${PORT:-3000}:3000'
+      - "3000:3000"
     environment:
-      NODE_ENV: ${NODE_ENV:-development}
-      PORT: 3000
-      LOG_LEVEL: ${LOG_LEVEL:-info}
+      - NODE_ENV=development
+      - PORT=3000
+      - LOG_LEVEL=debug
     volumes:
-      - ./src:/app/src:ro
-      - ./css:/app/css:ro
-      - ./js:/app/js:ro
-      - ./index.html:/app/index.html:ro
+      - ./src:/app/src
+      - ./js:/app/js
+      - ./css:/app/css
+      - ./index.html:/app/index.html
+    restart: unless-stopped
     healthcheck:
-      test: ['CMD', 'node', '-e', "require('http').get('http://localhost:3000/health', (r) => {if (r.statusCode !== 200) throw new Error(r.statusCode)})"]
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/health', (r) => {if (r.statusCode !== 200) throw new Error(r.statusCode)})"]
       interval: 30s
       timeout: 3s
       retries: 3
       start_period: 5s
-    restart: unless-stopped

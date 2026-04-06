@@ -2,13 +2,13 @@
 
 ## Overview
 
-This is a containerized Node.js/TypeScript application with both a backend API and frontend static assets. It uses Docker for containerization and GitHub Actions for CI/CD. The API includes built-in rate limiting to protect against abuse.
+This application is a Node.js/TypeScript API with a web frontend. It uses Docker for containerization and GitHub Actions for CI/CD.
 
 ## Prerequisites
 
-- Node.js 20+
-- Docker & Docker Compose (for local development)
-- GitHub repository with Actions enabled
+- Node.js 20 or later
+- Docker and Docker Compose
+- Git
 
 ## Local Development
 
@@ -19,147 +19,126 @@ npm install
 cp .env.example .env
 ```
 
-### Running Locally
-
-**Without Docker:**
-```bash
-npm run build
-npm start
-```
-
-**With Docker Compose:**
-```bash
-docker-compose up
-```
-
-Application will be available at `http://localhost:3000`
-
-### Health Check
+### Development Server
 
 ```bash
-node scripts/health-check.js
+npm run dev
 ```
 
-## CI/CD Pipeline
+The application will be available at `http://localhost:3000`.
 
-The GitHub Actions workflow runs on every push to `main` and pull requests:
+### Running Tests
 
-1. **Lint** (`npm run lint`) - ESLint validation
-2. **Type Check** (`npm run type-check`) - TypeScript compilation check
-3. **Test** (`npm run test`) - Vitest unit tests
-4. **Build** (`npm run build`) - Production build
-5. **Docker Build** - Multi-stage Docker image build (main branch only)
+```bash
+npm run test
+npm run test:watch
+```
+
+### Linting and Type Checking
+
+```bash
+npm run lint
+npm run type-check
+```
 
 ## Docker Deployment
 
-### Building the Image
+### Build Image
 
 ```bash
 docker build -t app:latest .
 ```
 
-### Running the Container
+### Run Container
 
 ```bash
 docker run -p 3000:3000 -e NODE_ENV=production app:latest
 ```
 
-### Environment Variables
+### Using Docker Compose
 
-Configure via `.env` file or Docker environment:
-
-- `NODE_ENV` - Set to `production` for production deployments
-- `PORT` - Application port (default: 3000)
-- `LOG_LEVEL` - Logging level (default: info)
-- `API_TIMEOUT` - API request timeout in ms (default: 30000)
-
-## Rate Limiting
-
-The API implements per-user rate limiting to protect against abuse and DoS attacks:
-
-### Configuration
-
-- **Rate Limit**: 100 requests per minute per user
-- **Window**: 60 seconds
-- **Identifier**: User ID (if authenticated) or IP address (if anonymous)
-
-### Rate Limit Headers
-
-All API responses include rate limit information:
-
-```
-X-RateLimit-Limit: 100
-X-RateLimit-Remaining: 95
-X-RateLimit-Reset: 1699564800000
+```bash
+docker-compose up
 ```
 
-### Rate Limit Exceeded Response
+For development with hot reload:
 
-When a user exceeds the rate limit, the API returns a 429 (Too Many Requests) response:
-
-```json
-{
-  "error": {
-    "message": "Rate limit exceeded. Maximum 100 requests per minute allowed.",
-    "code": "RATE_LIMIT_EXCEEDED"
-  }
-}
+```bash
+docker-compose -f docker-compose.yml up
 ```
 
-The response includes a `Retry-After` header indicating when to retry:
+## Environment Variables
 
-```
-Retry-After: 45
-```
+See `.env.example` for all available configuration options. Key variables:
 
-### Disabling Rate Limiting for Specific Routes
+- `NODE_ENV`: Set to `production` for production deployments
+- `PORT`: Application port (default: 3000)
+- `LOG_LEVEL`: Logging level (debug, info, warn, error)
 
-To exclude the health check endpoint from rate limiting, apply middleware selectively on specific routes:
+## Health Checks
 
-```typescript
-router.get('/health', (req, res) => {
-  // No rate limiting applied
-});
+The application exposes a health check endpoint at `GET /health`. This is used by:
 
-router.use(rateLimitMiddleware);
-router.get('/api/notes', ...);
-```
+- Docker health checks (every 30 seconds)
+- Load balancers
+- Orchestration platforms (Kubernetes, ECS)
 
-### Adjusting Rate Limits
+## Graceful Shutdown
 
-To modify rate limits, edit the constants in `src/middleware/errorHandler.ts`:
+The application handles `SIGTERM` and `SIGINT` signals for graceful shutdown:
 
-```typescript
-const RATE_LIMIT_WINDOW_MS = 60000;        // Window duration in milliseconds
-const RATE_LIMIT_MAX_REQUESTS = 100;       // Max requests per window
-```
+1. Stops accepting new requests
+2. Waits for in-flight requests to complete (with timeout)
+3. Closes database connections
+4. Exits cleanly
+
+## CI/CD Pipeline
+
+### Trigger Events
+
+- **Pull Requests**: Runs lint, type-check, and tests
+- **Push to main**: Runs full CI pipeline + Docker build
+- **Tags (v*)**: Builds and pushes Docker image with version tag
+
+### Pipeline Stages
+
+1. **Lint** (`npm run lint`): ESLint validation
+2. **Type Check** (`npm run type-check`): TypeScript validation
+3. **Test** (`npm run test`): Unit and integration tests
+4. **Build** (`npm run build`): TypeScript compilation
+5. **Docker Build**: Multi-stage Docker image creation
+
+### Artifacts
+
+- Test coverage reports (30 days retention)
+- Build artifacts (7 days retention)
 
 ## Production Deployment
 
-### Option 1: Cloud Container Registry (ECR, Docker Hub, GHCR)
+### Best Practices
 
-1. Configure Docker registry credentials in GitHub Secrets
-2. Update `.github/workflows/deploy.yml` with your registry
-3. Push to main branch to trigger automated deployment
+1. **Environment Variables**: Set all required variables before startup
+2. **Health Checks**: Enable health check endpoint for load balancers
+3. **Logging**: Use structured JSON logging for aggregation
+4. **Resource Limits**: Set appropriate CPU and memory limits
+5. **Restart Policy**: Use `unless-stopped` or equivalent
 
-### Option 2: Kubernetes
-
-Example deployment manifest:
+### Kubernetes Example
 
 ```yaml
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: api-app
+  name: app
 spec:
-  replicas: 2
+  replicas: 3
   selector:
     matchLabels:
-      app: api-app
+      app: app
   template:
     metadata:
       labels:
-        app: api-app
+        app: app
     spec:
       containers:
       - name: app
@@ -175,7 +154,7 @@ spec:
           httpGet:
             path: /health
             port: 3000
-          initialDelaySeconds: 10
+          initialDelaySeconds: 5
           periodSeconds: 30
         readinessProbe:
           httpGet:
@@ -185,180 +164,104 @@ spec:
           periodSeconds: 10
         resources:
           requests:
-            cpu: 100m
-            memory: 128Mi
+            memory: "256Mi"
+            cpu: "250m"
           limits:
-            cpu: 500m
-            memory: 512Mi
+            memory: "512Mi"
+            cpu: "500m"
 ```
 
-**Note on Rate Limiting with Kubernetes:**
+### AWS ECS Example
 
-When deploying to Kubernetes with multiple replicas, the in-memory rate limiting store is per-instance. For distributed rate limiting across all replicas, consider:
-
-1. **Redis-based rate limiting** - Use Redis to store rate limit counters across all instances
-2. **API Gateway rate limiting** - Implement rate limiting at the ingress level (e.g., nginx, Istio)
-3. **Sticky sessions** - Route requests from the same user to the same pod (less ideal)
-
-Example Redis integration:
-
-```typescript
-import redis from 'redis';
-
-const redisClient = redis.createClient();
-
-export async function rateLimitMiddlewareRedis(
-  req: Request,
-  res: Response,
-  next: NextFunction
-): Promise<void> {
-  const userId = (req as any).userId || req.ip || 'anonymous';
-  const key = `ratelimit:${userId}`;
-  const now = Date.now();
-  const windowStart = now - RATE_LIMIT_WINDOW_MS;
-
-  // Remove old entries
-  await redisClient.zremrangebyscore(key, '-inf', windowStart);
-
-  // Count requests in current window
-  const count = await redisClient.zcard(key);
-
-  if (count >= RATE_LIMIT_MAX_REQUESTS) {
-    res.status(429).json(
-      formatError(
-        `Rate limit exceeded. Maximum ${RATE_LIMIT_MAX_REQUESTS} requests per minute allowed.`,
-        'RATE_LIMIT_EXCEEDED'
-      )
-    );
-    return;
-  }
-
-  // Add current request
-  await redisClient.zadd(key, now, `${now}-${Math.random()}`);
-  await redisClient.expire(key, Math.ceil(RATE_LIMIT_WINDOW_MS / 1000));
-
-  res.setHeader('X-RateLimit-Limit', RATE_LIMIT_MAX_REQUESTS);
-  res.setHeader('X-RateLimit-Remaining', RATE_LIMIT_MAX_REQUESTS - count - 1);
-
-  next();
+```json
+{
+  "family": "app",
+  "containerDefinitions": [
+    {
+      "name": "app",
+      "image": "app:latest",
+      "portMappings": [
+        {
+          "containerPort": 3000,
+          "hostPort": 3000,
+          "protocol": "tcp"
+        }
+      ],
+      "environment": [
+        {
+          "name": "NODE_ENV",
+          "value": "production"
+        },
+        {
+          "name": "PORT",
+          "value": "3000"
+        }
+      ],
+      "healthCheck": {
+        "command": ["CMD-SHELL", "node scripts/health-check.js"],
+        "interval": 30,
+        "timeout": 3,
+        "retries": 3,
+        "startPeriod": 5
+      },
+      "memory": 512,
+      "cpu": 256,
+      "essential": true
+    }
+  ]
 }
 ```
 
-### Option 3: Traditional VPS/VM
+## Monitoring and Logging
 
-1. SSH into your server
-2. Install Docker and Docker Compose
-3. Clone repository and run: `docker-compose up -d`
-4. Configure reverse proxy (nginx/Apache) to forward requests to localhost:3000
+### Structured Logging
 
-## Monitoring & Logs
+The application uses structured JSON logging. Example:
 
-### Docker Logs
-
-```bash
-docker logs -f <container_id>
+```json
+{
+  "timestamp": "2024-01-01T12:00:00Z",
+  "level": "info",
+  "message": "Request processed",
+  "method": "GET",
+  "path": "/health",
+  "statusCode": 200,
+  "duration": 1.5
+}
 ```
 
-### Health Endpoint
+### Log Aggregation
 
-The application exposes a health check endpoint:
+Use tools like:
 
-```bash
-curl http://localhost:3000/health
-```
-
-### Rate Limiting Monitoring
-
-Monitor rate limit violations in application logs. Look for `RATE_LIMIT_EXCEEDED` errors:
-
-```bash
-docker logs <container_id> | grep RATE_LIMIT_EXCEEDED
-```
-
-## Graceful Shutdown
-
-The application handles `SIGTERM` and `SIGINT` signals for graceful shutdown:
-
-- Stops accepting new connections
-- Waits for existing requests to complete
-- Closes database connections
-- Exits cleanly
-
-## Scaling
-
-### Docker Compose
-
-```bash
-docker-compose up -d --scale app=3
-```
-
-**Important:** When scaling horizontally, rate limiting is per-instance. For consistent rate limiting across instances, use Redis-based rate limiting (see Kubernetes section above).
-
-### Kubernetes
-
-```bash
-kubectl scale deployment api-app --replicas=3
-```
-
-For distributed rate limiting, deploy a Redis instance alongside the application.
+- **CloudWatch** (AWS)
+- **ELK Stack** (Elasticsearch, Logstash, Kibana)
+- **Datadog**
+- **New Relic**
 
 ## Troubleshooting
 
-### Container fails to start
+### Application won't start
 
-1. Check logs: `docker logs <container_id>`
-2. Verify environment variables are set
-3. Ensure port 3000 is not in use
+1. Check environment variables are set correctly
+2. Verify PORT is not in use
+3. Check logs: `docker logs <container-id>`
 
-### Health check fails
+### Health check failing
 
-1. Verify `/health` endpoint is responding
-2. Check application logs for errors
-3. Verify network connectivity
+1. Ensure application is fully started
+2. Check network connectivity
+3. Verify `/health` endpoint is responding
 
-### Build failures in CI
+### High memory usage
 
-1. Check GitHub Actions logs
-2. Verify Node.js version compatibility
-3. Ensure all dependencies are declared in package.json
-
-### Rate limiting not working
-
-1. Verify `rateLimitMiddleware` is applied in `src/routes/index.ts`
-2. Check that rate limit constants are correctly configured
-3. For multi-instance deployments, ensure Redis is configured
-4. Monitor `X-RateLimit-*` headers in responses
+1. Check for memory leaks in application code
+2. Increase container memory limit
+3. Enable garbage collection logging
 
 ## Rollback Procedure
 
 1. Identify the previous stable image tag
 2. Update deployment to use previous image
-3. Monitor application health
-4. Investigate root cause of failed deployment
-
-## Security Considerations
-
-- Run container as non-root user (nodejs:1001)
-- Keep base image updated (node:20-alpine)
-- Scan images for vulnerabilities: `docker scan app:latest`
-- Use environment variables for secrets (never commit to repo)
-- Enable HTTPS in production via reverse proxy
-- **Rate limiting enabled** - Protects against abuse and DoS attacks (100 requests/minute per user)
-- Implement request validation
-- Monitor rate limit violations for suspicious activity
-
-## Performance Optimization
-
-- Multi-stage Docker build reduces image size
-- Alpine base image (~150MB vs ~900MB for full Node)
-- Layer caching in CI/CD for faster builds
-- Health checks configured for fast recovery
-- Non-root user reduces attack surface
-- In-memory rate limiting for low-latency protection (consider Redis for distributed systems)
-
-## Support
-
-For issues or questions, refer to:
-- Application README.md
-- GitHub Actions logs
-- Docker documentation: https://docs.docker.com
+3. Monitor health checks and logs
+4. Investigate root cause of failure

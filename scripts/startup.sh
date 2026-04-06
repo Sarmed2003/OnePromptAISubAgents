@@ -1,22 +1,22 @@
-#!/bin/bash
-
+#!/bin/sh
 set -e
 
-echo "Starting application..."
+echo "[startup] Node environment: $NODE_ENV"
+echo "[startup] Starting application on port $PORT"
 
-# Handle graceful shutdown
-trap 'echo "Shutting down gracefully..."; exit 0' SIGTERM SIGINT
+# Wait for graceful shutdown signals
+trap 'echo "[startup] Received SIGTERM, shutting down gracefully..."; exit 0' SIGTERM
+trap 'echo "[startup] Received SIGINT, shutting down gracefully..."; exit 0' SIGINT
 
-# Wait for dependencies if needed
-if [ -n "$WAIT_FOR_HOST" ]; then
-  echo "Waiting for $WAIT_FOR_HOST to be ready..."
-  timeout 30 bash -c "until nc -z $WAIT_FOR_HOST; do sleep 1; done" || exit 1
-fi
+# Start the application
+node dist/index.js &
+PID=$!
 
-# Run health check
-echo "Running health check..."
-node scripts/health-check.js || exit 1
+echo "[startup] Application started with PID $PID"
 
-# Start application
-echo "Application started"
-exec node dist/index.js
+# Wait for the application process
+wait $PID
+EXIT_CODE=$?
+
+echo "[startup] Application exited with code $EXIT_CODE"
+exit $EXIT_CODE
