@@ -1,12 +1,16 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, Vi } from 'vitest';
 import request from 'supertest';
 import { createApp } from '../src/app';
-import { Express } from 'express';
+import type { Express } from 'express';
 
 let app: Express;
 
 beforeAll(() => {
   app = createApp();
+});
+
+afterAll(() => {
+  // Cleanup if needed
 });
 
 describe('API Endpoints', () => {
