@@ -109,6 +109,16 @@ export function resourceOwnershipMiddleware(
     return;
   }
 
+  if (!req.userId) {
+    res.status(401).json({
+      error: {
+        message: 'User ID not found in request',
+        code: 'UNAUTHORIZED',
+      },
+    });
+    return;
+  }
+
   if (req.userId !== resourceOwnerId) {
     res.status(403).json({
       error: {
