@@ -1,6 +1,10 @@
 import { Request, Response, NextFunction } from 'express';
 
-export function loggingMiddleware(req: Request, res: Response, next: NextFunction): void {
+export function loggingMiddleware(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): void {
   const start: number = Date.now();
   const method: string = req.method;
   const path: string = req.path;
