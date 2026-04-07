@@ -1,5 +1,12 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { DynamoDBDocumentClient, GetCommand, PutCommand, UpdateCommand, DeleteCommand, ScanCommand } from '@aws-sdk/lib-dynamodb';
+import {
+  DynamoDBDocumentClient,
+  GetCommand,
+  PutCommand,
+  UpdateCommand,
+  DeleteCommand,
+  ScanCommand,
+} from '@aws-sdk/lib-dynamodb';
 import { Note } from '../types/index';
 import { generateId, getCurrentTimestamp } from './utils';
 
@@ -241,6 +248,37 @@ class NoteStore {
       if (error.name === 'ResourceNotFoundException') {
         this.useInMemory = true;
         return inMemoryStore.delete(id);
+      }
+      throw err;
+    }
+  }
+
+  async listNotesByUserId(userId: string): Promise<Note[]> {
+    try {
+      if (!userId || typeof userId !== 'string') {
+        throw new Error('Invalid user ID');
+      }
+
+      const tableExists = await this.checkTableExists();
+      if (!tableExists) {
+        return Array.from(inMemoryStore.values()).filter((note) => note.userId === userId);
+      }
+
+      const command = new ScanCommand({
+        TableName: TABLE_NAME,
+        FilterExpression: 'userId = :userId',
+        ExpressionAttributeValues: {
+          ':userId': userId,
+        },
+      });
+      const response = await docClient.send(command);
+      return (response.Items as Note[]) || [];
+    } catch (err) {
+      console.error('listNotesByUserId failed:', err);
+      const error = err as { name?: string; message?: string };
+      if (error.name === 'ResourceNotFoundException') {
+        this.useInMemory = true;
+        return Array.from(inMemoryStore.values()).filter((note) => note.userId === userId);
       }
       throw err;
     }

@@ -4,6 +4,7 @@ export interface Note {
   content: string;
   createdAt: string;
   updatedAt: string;
+  userId?: string;
 }
 
 export interface HealthResponse {
@@ -17,6 +18,19 @@ export interface ErrorResponse {
     message: string;
     code: string;
   };
+}
+
+export interface AuthenticatedRequest {
+  userId: string;
+  email: string;
+  iat: number;
+}
+
+export interface TokenPayload {
+  userId: string;
+  email: string;
+  iat: number;
+  exp: number;
 }
 
 export type ApiResponse<T> = {
