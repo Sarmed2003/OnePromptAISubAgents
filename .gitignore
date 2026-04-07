@@ -59,3 +59,8 @@ Thumbs.db
 
 # CI/CD
 .github/workflows/*.local.yml
+
+# Audit reports
+AUDIT-*.md
+AUDIT-*.json
+FINAL-*.md

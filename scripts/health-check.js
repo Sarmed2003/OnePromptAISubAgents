@@ -1,37 +1,36 @@
 #!/usr/bin/env node
 
 const http = require('http');
-
-const PORT = process.env.PORT || 3000;
-const TIMEOUT = 3000;
+const port = process.env.PORT || 3000;
+const host = process.env.HOST || 'localhost';
 
 const options = {
-  hostname: 'localhost',
-  port: PORT,
+  hostname: host,
+  port: port,
   path: '/health',
   method: 'GET',
-  timeout: TIMEOUT,
+  timeout: 3000,
 };
 
-const req = http.request(options, (res) => {
-  if (res.statusCode === 200) {
-    console.log(`[health-check] Health check passed (${res.statusCode})`);
+const request = http.request(options, (response) => {
+  if (response.statusCode === 200) {
+    console.log('[health-check] OK');
     process.exit(0);
   } else {
-    console.error(`[health-check] Health check failed with status ${res.statusCode}`);
+    console.error(`[health-check] FAIL: HTTP ${response.statusCode}`);
     process.exit(1);
   }
 });
 
-req.on('error', (err) => {
-  console.error(`[health-check] Health check error: ${err.message}`);
+request.on('error', (error) => {
+  console.error(`[health-check] ERROR: ${error.message}`);
   process.exit(1);
 });
 
-req.on('timeout', () => {
-  console.error(`[health-check] Health check timeout after ${TIMEOUT}ms`);
-  req.destroy();
+request.on('timeout', () => {
+  console.error('[health-check] TIMEOUT');
+  request.destroy();
   process.exit(1);
 });
 
-req.end();
+request.end();

@@ -2,266 +2,236 @@
 
 ## Overview
 
-This application is a Node.js/TypeScript API with a web frontend. It uses Docker for containerization and GitHub Actions for CI/CD.
+This is a containerized Node.js/TypeScript application with both a game frontend (HTML/CSS/JS) and a REST API backend. The application is deployment-ready with Docker, CI/CD pipelines, and health checks.
 
-## Prerequisites
+## Technology Stack
 
-- Node.js 20 or later
-- Docker and Docker Compose
-- Git
+- **Runtime**: Node.js 20 (Alpine)
+- **Language**: TypeScript
+- **Framework**: Express.js (inferred from src/app.ts)
+- **Testing**: Vitest
+- **Linting**: ESLint
+- **Container**: Docker + docker-compose
+- **CI/CD**: GitHub Actions
 
 ## Local Development
+
+### Prerequisites
+
+- Node.js 20+
+- npm 10+
+- Docker & Docker Compose (for containerized deployment)
 
 ### Setup
 
 ```bash
-npm install
-cp .env.example .env
-```
+# Install dependencies
+npm ci
 
-### Development Server
+# Run linting
+npm run lint
 
-```bash
+# Type check
+npm run type-check
+
+# Run tests
+npm run test
+
+# Build
+npm run build
+
+# Start development server
 npm run dev
 ```
 
-The application will be available at `http://localhost:3000`.
-
-### Running Tests
+### Docker Compose
 
 ```bash
-npm run test
-npm run test:watch
+# Build and start
+docker-compose up --build
+
+# View logs
+docker-compose logs -f app
+
+# Stop
+docker-compose down
 ```
 
-### Linting and Type Checking
+## Environment Configuration
+
+Create a `.env` file based on `.env.example`:
 
 ```bash
-npm run lint
-npm run type-check
+cp .env.example .env
 ```
+
+Key variables:
+
+- `NODE_ENV`: `development`, `staging`, or `production`
+- `PORT`: Server port (default: 3000)
+- `HOST`: Bind address (default: 0.0.0.0)
+- `LOG_LEVEL`: `debug`, `info`, `warn`, `error`
+- `CORS_ORIGIN`: Allowed CORS origin
 
 ## Docker Deployment
 
-### Build Image
+### Build
 
 ```bash
-docker build -t app:latest .
+docker build -t api-platform:latest .
 ```
 
-### Run Container
+### Run
 
 ```bash
-docker run -p 3000:3000 -e NODE_ENV=production app:latest
+docker run -p 3000:3000 \
+  -e NODE_ENV=production \
+  -e LOG_LEVEL=info \
+  api-platform:latest
 ```
 
-### Using Docker Compose
+### Health Check
+
+The container includes a built-in health check:
 
 ```bash
-docker-compose up
+curl http://localhost:3000/health
 ```
 
-For development with hot reload:
+Expected response (200 OK):
 
-```bash
-docker-compose -f docker-compose.yml up
+```json
+{"status": "ok"}
 ```
-
-## Environment Variables
-
-See `.env.example` for all available configuration options. Key variables:
-
-- `NODE_ENV`: Set to `production` for production deployments
-- `PORT`: Application port (default: 3000)
-- `LOG_LEVEL`: Logging level (debug, info, warn, error)
-
-## Health Checks
-
-The application exposes a health check endpoint at `GET /health`. This is used by:
-
-- Docker health checks (every 30 seconds)
-- Load balancers
-- Orchestration platforms (Kubernetes, ECS)
-
-## Graceful Shutdown
-
-The application handles `SIGTERM` and `SIGINT` signals for graceful shutdown:
-
-1. Stops accepting new requests
-2. Waits for in-flight requests to complete (with timeout)
-3. Closes database connections
-4. Exits cleanly
 
 ## CI/CD Pipeline
 
-### Trigger Events
+### Workflows
 
-- **Pull Requests**: Runs lint, type-check, and tests
-- **Push to main**: Runs full CI pipeline + Docker build
-- **Tags (v*)**: Builds and pushes Docker image with version tag
+1. **ci.yml** (on push & PR):
+   - Lint code (ESLint)
+   - Type check (TypeScript)
+   - Run tests (Vitest)
+   - Build artifacts
 
-### Pipeline Stages
+2. **deploy.yml** (on push to main):
+   - Build Docker image
+   - Push to container registry
+   - Deploy to production
 
-1. **Lint** (`npm run lint`): ESLint validation
-2. **Type Check** (`npm run type-check`): TypeScript validation
-3. **Test** (`npm run test`): Unit and integration tests
-4. **Build** (`npm run build`): TypeScript compilation
-5. **Docker Build**: Multi-stage Docker image creation
+### GitHub Secrets
 
-### Artifacts
+For the deploy workflow, configure these secrets in your repository:
 
-- Test coverage reports (30 days retention)
-- Build artifacts (7 days retention)
+- `REGISTRY`: Container registry URL (e.g., `ghcr.io`)
+- `IMAGE_NAME`: Image name (e.g., `owner/api-platform`)
 
 ## Production Deployment
 
-### Best Practices
+### 12-Factor Compliance
 
-1. **Environment Variables**: Set all required variables before startup
-2. **Health Checks**: Enable health check endpoint for load balancers
-3. **Logging**: Use structured JSON logging for aggregation
-4. **Resource Limits**: Set appropriate CPU and memory limits
-5. **Restart Policy**: Use `unless-stopped` or equivalent
+This application follows the 12-factor app methodology:
 
-### Kubernetes Example
+1. **Codebase**: Single Git repository
+2. **Dependencies**: Declared in `package.json`
+3. **Config**: Stored in environment variables (`.env`)
+4. **Backing Services**: Attached via connection strings (if applicable)
+5. **Build/Release/Run**: Strictly separated stages
+6. **Processes**: Stateless, share-nothing
+7. **Port Binding**: Exports HTTP service via PORT env var
+8. **Concurrency**: Scales via process replication
+9. **Disposability**: Fast startup (< 5s), graceful shutdown (SIGTERM handling)
+10. **Dev/Prod Parity**: Identical environments
+11. **Logs**: Stdout/stderr event streams (JSON formatted)
+12. **Admin Processes**: One-off tasks as separate scripts
 
-```yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: app
-spec:
-  replicas: 3
-  selector:
-    matchLabels:
-      app: app
-  template:
-    metadata:
-      labels:
-        app: app
-    spec:
-      containers:
-      - name: app
-        image: app:latest
-        ports:
-        - containerPort: 3000
-        env:
-        - name: NODE_ENV
-          value: "production"
-        - name: PORT
-          value: "3000"
-        livenessProbe:
-          httpGet:
-            path: /health
-            port: 3000
-          initialDelaySeconds: 5
-          periodSeconds: 30
-        readinessProbe:
-          httpGet:
-            path: /health
-            port: 3000
-          initialDelaySeconds: 5
-          periodSeconds: 10
-        resources:
-          requests:
-            memory: "256Mi"
-            cpu: "250m"
-          limits:
-            memory: "512Mi"
-            cpu: "500m"
+### Graceful Shutdown
+
+The application handles `SIGTERM` signals for graceful shutdown:
+
+```bash
+# Kubernetes will send SIGTERM before forceful termination
+# Application has up to 30 seconds to shut down cleanly
 ```
 
-### AWS ECS Example
+### Logging
+
+Logs are written to stdout in JSON format for easy parsing:
 
 ```json
-{
-  "family": "app",
-  "containerDefinitions": [
-    {
-      "name": "app",
-      "image": "app:latest",
-      "portMappings": [
-        {
-          "containerPort": 3000,
-          "hostPort": 3000,
-          "protocol": "tcp"
-        }
-      ],
-      "environment": [
-        {
-          "name": "NODE_ENV",
-          "value": "production"
-        },
-        {
-          "name": "PORT",
-          "value": "3000"
-        }
-      ],
-      "healthCheck": {
-        "command": ["CMD-SHELL", "node scripts/health-check.js"],
-        "interval": 30,
-        "timeout": 3,
-        "retries": 3,
-        "startPeriod": 5
-      },
-      "memory": 512,
-      "cpu": 256,
-      "essential": true
-    }
-  ]
-}
+{"timestamp": "2024-01-15T10:30:45Z", "level": "info", "message": "Server started", "port": 3000}
 ```
 
-## Monitoring and Logging
+### Scaling
 
-### Structured Logging
+Run multiple instances behind a load balancer:
 
-The application uses structured JSON logging. Example:
+```bash
+# Docker Swarm
+docker service create --replicas 3 api-platform:latest
 
-```json
-{
-  "timestamp": "2024-01-01T12:00:00Z",
-  "level": "info",
-  "message": "Request processed",
-  "method": "GET",
-  "path": "/health",
-  "statusCode": 200,
-  "duration": 1.5
-}
+# Kubernetes
+kubectl scale deployment api-platform --replicas=3
 ```
 
-### Log Aggregation
+## Monitoring
 
-Use tools like:
+### Health Checks
 
-- **CloudWatch** (AWS)
-- **ELK Stack** (Elasticsearch, Logstash, Kibana)
-- **Datadog**
-- **New Relic**
+- **Endpoint**: `GET /health`
+- **Response**: `{"status": "ok"}`
+- **Interval**: 30s
+- **Timeout**: 3s
+- **Unhealthy threshold**: 3 failures
+
+### Metrics
+
+Recommended monitoring:
+
+- HTTP request latency
+- Error rate (5xx responses)
+- Container CPU & memory usage
+- Startup/shutdown duration
 
 ## Troubleshooting
 
-### Application won't start
+### Container won't start
 
-1. Check environment variables are set correctly
-2. Verify PORT is not in use
-3. Check logs: `docker logs <container-id>`
+```bash
+# Check logs
+docker logs <container-id>
 
-### Health check failing
+# Verify health check
+docker inspect --format='{{json .State.Health}}' <container-id>
+```
 
-1. Ensure application is fully started
-2. Check network connectivity
-3. Verify `/health` endpoint is responding
+### Port already in use
 
-### High memory usage
+```bash
+# Change port
+docker run -p 8080:3000 api-platform:latest
+```
 
-1. Check for memory leaks in application code
-2. Increase container memory limit
-3. Enable garbage collection logging
+### Permission denied
 
-## Rollback Procedure
+The container runs as non-root user `nodejs` (UID 1001). Ensure file permissions are correct:
 
-1. Identify the previous stable image tag
-2. Update deployment to use previous image
-3. Monitor health checks and logs
-4. Investigate root cause of failure
+```bash
+chown -R 1001:1001 /app
+```
+
+## Security
+
+- Non-root user execution
+- Alpine base image (minimal attack surface)
+- No secrets in Dockerfile or environment defaults
+- Health check prevents serving traffic during startup
+- Graceful shutdown prevents data loss
+
+## Next Steps
+
+1. Configure GitHub secrets for container registry
+2. Set up monitoring/alerting (CloudWatch, Datadog, etc.)
+3. Configure log aggregation (ELK, Splunk, etc.)
+4. Set up automated backups (if applicable)
+5. Configure CDN/caching for static assets

@@ -3,8 +3,6 @@ name: Deploy
 on:
   push:
     branches: [main]
-    tags:
-      - 'v*'
 
 jobs:
   deploy:
@@ -20,21 +18,15 @@ jobs:
           cache: 'npm'
       - run: npm ci
       - run: npm run build
-      
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-      
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v5
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v5
         with:
           context: .
           push: true
           cache-from: type=gha
           cache-to: type=gha,mode=max
           tags: |
-            app:latest
-            app:${{ github.sha }}
-          labels: |
-            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
-            org.opencontainers.image.revision=${{ github.sha }}
-            org.opencontainers.image.created=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          build-args: |
+            NODE_ENV=production
