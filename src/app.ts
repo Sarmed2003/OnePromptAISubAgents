@@ -4,17 +4,22 @@ import { loggingMiddleware } from './middleware/logging';
 import { authMiddleware } from './middleware/auth';
 import routes from './routes';
 
-const app = express();
+function createApp(): express.Application {
+  const app = express();
 
-// Middleware
-app.use(express.json());
-app.use(loggingMiddleware);
-app.use(authMiddleware);
+  // Middleware
+  app.use(express.json());
+  app.use(loggingMiddleware);
+  app.use(authMiddleware);
 
-// Routes
-app.use('/', routes);
+  // Routes
+  app.use('/', routes);
 
-// Error handling middleware (must be last)
-app.use(errorHandler);
+  // Error handling middleware (must be last)
+  app.use(errorHandler);
 
-export default app;
+  return app;
+}
+
+export { createApp };
+export default createApp();
