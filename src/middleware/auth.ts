@@ -26,7 +26,7 @@ export const extractUserId = (req: AuthenticatedRequest): string | null => {
   return token;
 };
 
-export const authMiddleware = (req: Request, res: Response, next: NextFunction): void => {
+export const authMiddleware = (req: Request, _res: Response, next: NextFunction): void => {
   const authenticatedReq = req as AuthenticatedRequest;
   const authHeader = authenticatedReq.headers.authorization;
   
