@@ -2,7 +2,7 @@ import express from 'express';
 import { errorHandler } from './middleware/errorHandler';
 import { loggingMiddleware } from './middleware/logging';
 import { authMiddleware } from './middleware/auth';
-import routes from './routes';
+import notesRoutes from './routes/notes';
 
 function createApp(): express.Application {
   const app = express();
@@ -10,10 +10,12 @@ function createApp(): express.Application {
   // Middleware
   app.use(express.json());
   app.use(loggingMiddleware);
-  app.use(authMiddleware);
 
-  // Routes
-  app.use('/', routes);
+  // Routes (before auth middleware so public routes work)
+  app.use('/api/notes', notesRoutes);
+
+  // Auth middleware (after routes, or selectively apply)
+  app.use(authMiddleware);
 
   // Error handling middleware (must be last)
   app.use(errorHandler);
