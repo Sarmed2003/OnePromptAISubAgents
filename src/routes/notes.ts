@@ -8,7 +8,7 @@ const notesDb: { [key: string]: { id: string; title: string; content: string; us
 let noteIdCounter = 1;
 
 // GET /api/notes - list all notes (requires auth)
-router.get('/', authMiddleware, (req: Request, res: Response, next: NextFunction): void => {
+router.get('/', authMiddleware, (req: Request, res: Response, next: NextFunction): Response | void => {
   try {
     const userId = (req as any).userId;
     if (!userId) {
@@ -24,7 +24,7 @@ router.get('/', authMiddleware, (req: Request, res: Response, next: NextFunction
 });
 
 // POST /api/notes - create a new note (requires auth)
-router.post('/', authMiddleware, (req: Request, res: Response, next: NextFunction): void => {
+router.post('/', authMiddleware, (req: Request, res: Response, next: NextFunction): Response | void => {
   try {
     const userId = (req as any).userId;
     if (!userId) {
@@ -46,7 +46,7 @@ router.post('/', authMiddleware, (req: Request, res: Response, next: NextFunctio
 });
 
 // GET /api/notes/:id - get a specific note (requires auth)
-router.get('/:id', authMiddleware, (req: Request, res: Response, next: NextFunction): void => {
+router.get('/:id', authMiddleware, (req: Request, res: Response, next: NextFunction): Response | void => {
   try {
     const userId = (req as any).userId;
     if (!userId) {
@@ -65,7 +65,7 @@ router.get('/:id', authMiddleware, (req: Request, res: Response, next: NextFunct
 });
 
 // PUT /api/notes/:id - update a note (requires auth)
-router.put('/:id', authMiddleware, (req: Request, res: Response, next: NextFunction): void => {
+router.put('/:id', authMiddleware, (req: Request, res: Response, next: NextFunction): Response | void => {
   try {
     const userId = (req as any).userId;
     if (!userId) {
@@ -94,7 +94,7 @@ router.put('/:id', authMiddleware, (req: Request, res: Response, next: NextFunct
 });
 
 // DELETE /api/notes/:id - delete a note (requires auth)
-router.delete('/:id', authMiddleware, (req: Request, res: Response, next: NextFunction): void => {
+router.delete('/:id', authMiddleware, (req: Request, res: Response, next: NextFunction): Response | void => {
   try {
     const userId = (req as any).userId;
     if (!userId) {
