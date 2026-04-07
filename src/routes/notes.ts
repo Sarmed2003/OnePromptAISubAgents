@@ -3,6 +3,10 @@ import { authMiddleware } from '../middleware/auth';
 
 const router = Router();
 
+// Mock database for notes
+const notesDb: { [key: string]: { id: string; title: string; content: string; userId: string } } = {};
+let noteIdCounter = 1;
+
 // GET /api/notes - list all notes (requires auth)
 router.get('/', authMiddleware, (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -10,8 +14,9 @@ router.get('/', authMiddleware, (req: Request, res: Response, next: NextFunction
     if (!userId) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
-    // Return empty array for now
-    res.status(200).json([]);
+    // Return notes for the authenticated user
+    const userNotes = Object.values(notesDb).filter(note => note.userId === userId);
+    res.status(200).json(userNotes);
   } catch (err) {
     next(err);
   }
@@ -28,7 +33,10 @@ router.post('/', authMiddleware, (req: Request, res: Response, next: NextFunctio
     if (!title || !content) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
-    res.status(201).json({ id: '1', title, content, userId });
+    const id = String(noteIdCounter++);
+    const note = { id, title, content, userId };
+    notesDb[id] = note;
+    res.status(201).json(note);
   } catch (err) {
     next(err);
   }
@@ -42,7 +50,11 @@ router.get('/:id', authMiddleware, (req: Request, res: Response, next: NextFunct
       return res.status(401).json({ error: 'Unauthorized' });
     }
     const { id } = req.params;
-    res.status(200).json({ id, title: 'Note', content: 'Content', userId });
+    const note = notesDb[id];
+    if (!note) {
+      return res.status(404).json({ error: 'Note not found' });
+    }
+    res.status(200).json(note);
   } catch (err) {
     next(err);
   }
@@ -60,7 +72,16 @@ router.put('/:id', authMiddleware, (req: Request, res: Response, next: NextFunct
     if (!title || !content) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
-    res.status(200).json({ id, title, content, userId });
+    const note = notesDb[id];
+    if (!note) {
+      return res.status(404).json({ error: 'Note not found' });
+    }
+    if (note.userId !== userId) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+    note.title = title;
+    note.content = content;
+    res.status(200).json(note);
   } catch (err) {
     next(err);
   }
@@ -73,6 +94,15 @@ router.delete('/:id', authMiddleware, (req: Request, res: Response, next: NextFu
     if (!userId) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
+    const { id } = req.params;
+    const note = notesDb[id];
+    if (!note) {
+      return res.status(404).json({ error: 'Note not found' });
+    }
+    if (note.userId !== userId) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+    delete notesDb[id];
     res.status(204).send();
   } catch (err) {
     next(err);
