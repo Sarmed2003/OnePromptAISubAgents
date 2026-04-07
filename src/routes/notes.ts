@@ -1,14 +1,15 @@
-import express, { Router, Request, Response, NextFunction } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import { authMiddleware } from '../middleware/auth';
 
 const router = Router();
 
 // GET /api/notes - list all notes (requires auth)
-router.get('/', authMiddleware, (req: Request, res: Response, next: NextFunction) => {
+router.get('/', authMiddleware, (req: Request, res: Response, next: NextFunction): void => {
   try {
     const userId = (req as any).userId;
     if (!userId) {
-      return res.status(401).json({ error: 'Unauthorized' });
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
     }
     // Return empty array for now
     res.status(200).json([]);
@@ -18,15 +19,17 @@ router.get('/', authMiddleware, (req: Request, res: Response, next: NextFunction
 });
 
 // POST /api/notes - create a new note (requires auth)
-router.post('/', authMiddleware, (req: Request, res: Response, next: NextFunction) => {
+router.post('/', authMiddleware, (req: Request, res: Response, next: NextFunction): void => {
   try {
     const userId = (req as any).userId;
     if (!userId) {
-      return res.status(401).json({ error: 'Unauthorized' });
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
     }
     const { title, content } = req.body;
     if (!title || !content) {
-      return res.status(400).json({ error: 'Missing required fields' });
+      res.status(400).json({ error: 'Missing required fields' });
+      return;
     }
     res.status(201).json({ id: '1', title, content, userId });
   } catch (err) {
@@ -35,11 +38,12 @@ router.post('/', authMiddleware, (req: Request, res: Response, next: NextFunctio
 });
 
 // GET /api/notes/:id - get a specific note (requires auth)
-router.get('/:id', authMiddleware, (req: Request, res: Response, next: NextFunction) => {
+router.get('/:id', authMiddleware, (req: Request, res: Response, next: NextFunction): void => {
   try {
     const userId = (req as any).userId;
     if (!userId) {
-      return res.status(401).json({ error: 'Unauthorized' });
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
     }
     const { id } = req.params;
     res.status(200).json({ id, title: 'Note', content: 'Content', userId });
@@ -49,16 +53,18 @@ router.get('/:id', authMiddleware, (req: Request, res: Response, next: NextFunct
 });
 
 // PUT /api/notes/:id - update a note (requires auth)
-router.put('/:id', authMiddleware, (req: Request, res: Response, next: NextFunction) => {
+router.put('/:id', authMiddleware, (req: Request, res: Response, next: NextFunction): void => {
   try {
     const userId = (req as any).userId;
     if (!userId) {
-      return res.status(401).json({ error: 'Unauthorized' });
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
     }
     const { id } = req.params;
     const { title, content } = req.body;
     if (!title || !content) {
-      return res.status(400).json({ error: 'Missing required fields' });
+      res.status(400).json({ error: 'Missing required fields' });
+      return;
     }
     res.status(200).json({ id, title, content, userId });
   } catch (err) {
@@ -67,11 +73,12 @@ router.put('/:id', authMiddleware, (req: Request, res: Response, next: NextFunct
 });
 
 // DELETE /api/notes/:id - delete a note (requires auth)
-router.delete('/:id', authMiddleware, (req: Request, res: Response, next: NextFunction) => {
+router.delete('/:id', authMiddleware, (req: Request, res: Response, next: NextFunction): void => {
   try {
     const userId = (req as any).userId;
     if (!userId) {
-      return res.status(401).json({ error: 'Unauthorized' });
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
     }
     res.status(204).send();
   } catch (err) {
