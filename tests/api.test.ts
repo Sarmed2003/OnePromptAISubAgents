@@ -7,11 +7,15 @@ import type { Express } from 'express';
 interface TestSetupState {
   app: Express | null;
   createdNoteId: string | null;
+  userId: string;
+  authToken: string;
 }
 
 const testState: TestSetupState = {
   app: null,
   createdNoteId: null,
+  userId: 'test-user-123',
+  authToken: 'Bearer test-user-123',
 };
 
 beforeAll(async (): Promise<void> => {
@@ -19,7 +23,7 @@ beforeAll(async (): Promise<void> => {
 
   // Initialize test data
   try {
-    const note = await noteStore.createNote('Test Note', 'This is a test note');
+    const note = await noteStore.createNote('Test Note', 'This is a test note', testState.userId);
     testState.createdNoteId = note.id;
   } catch (err: unknown) {
     const errorMessage = err instanceof Error ? err.message : String(err);
@@ -65,7 +69,7 @@ describe('API Endpoints', () => {
   });
 
   describe('POST /api/notes', () => {
-    it('should create a new note', async (): Promise<void> => {
+    it('should reject request without authentication', async (): Promise<void> => {
       if (!testState.app) {
         throw new Error('App not initialized');
       }
@@ -76,10 +80,27 @@ describe('API Endpoints', () => {
       const response = await request(testState.app)
         .post('/api/notes')
         .send(newNote);
+      expect(response.status).toBe(401);
+      expect(response.body).toHaveProperty('error');
+    });
+
+    it('should create a new note with authentication', async (): Promise<void> => {
+      if (!testState.app) {
+        throw new Error('App not initialized');
+      }
+      const newNote = {
+        title: 'Test Note',
+        content: 'This is a test note',
+      };
+      const response = await request(testState.app)
+        .post('/api/notes')
+        .set('Authorization', testState.authToken)
+        .send(newNote);
       expect(response.status).toBe(201);
       expect(response.body).toHaveProperty('id');
       expect(response.body).toHaveProperty('title', 'Test Note');
       expect(response.body).toHaveProperty('content', 'This is a test note');
+      expect(response.body).toHaveProperty('userId', testState.userId);
     });
 
     it('should reject note without title', async (): Promise<void> => {
@@ -91,6 +112,7 @@ describe('API Endpoints', () => {
       };
       const response = await request(testState.app)
         .post('/api/notes')
+        .set('Authorization', testState.authToken)
         .send(newNote);
       expect(response.status).toBe(400);
       expect(response.body).toHaveProperty('error');
@@ -117,6 +139,80 @@ describe('API Endpoints', () => {
         '/api/notes/non-existent-id-12345'
       );
       expect(response.status).toBe(404);
+      expect(response.body).toHaveProperty('error');
+    });
+  });
+
+  describe('PUT /api/notes/:id', () => {
+    it('should reject update without authentication', async (): Promise<void> => {
+      if (!testState.app || !testState.createdNoteId) {
+        throw new Error('App not initialized or test note not created');
+      }
+      const response = await request(testState.app)
+        .put(`/api/notes/${testState.createdNoteId}`)
+        .send({ title: 'Updated Title' });
+      expect(response.status).toBe(401);
+      expect(response.body).toHaveProperty('error');
+    });
+
+    it('should update note with correct ownership', async (): Promise<void> => {
+      if (!testState.app || !testState.createdNoteId) {
+        throw new Error('App not initialized or test note not created');
+      }
+      const response = await request(testState.app)
+        .put(`/api/notes/${testState.createdNoteId}`)
+        .set('Authorization', testState.authToken)
+        .send({ title: 'Updated Title', content: 'Updated content' });
+      expect(response.status).toBe(200);
+      expect(response.body).toHaveProperty('title', 'Updated Title');
+      expect(response.body).toHaveProperty('content', 'Updated content');
+    });
+
+    it('should reject update with different user', async (): Promise<void> => {
+      if (!testState.app || !testState.createdNoteId) {
+        throw new Error('App not initialized or test note not created');
+      }
+      const response = await request(testState.app)
+        .put(`/api/notes/${testState.createdNoteId}`)
+        .set('Authorization', 'Bearer different-user-456')
+        .send({ title: 'Malicious Update' });
+      expect(response.status).toBe(403);
+      expect(response.body).toHaveProperty('error');
+    });
+  });
+
+  describe('DELETE /api/notes/:id', () => {
+    it('should reject delete without authentication', async (): Promise<void> => {
+      if (!testState.app) {
+        throw new Error('App not initialized');
+      }
+      const response = await request(testState.app).delete(
+        '/api/notes/some-note-id'
+      );
+      expect(response.status).toBe(401);
+      expect(response.body).toHaveProperty('error');
+    });
+
+    it('should delete note with correct ownership', async (): Promise<void> => {
+      if (!testState.app) {
+        throw new Error('App not initialized');
+      }
+      // Create a note to delete
+      const note = await noteStore.createNote('To Delete', 'This will be deleted', testState.userId);
+      const response = await request(testState.app)
+        .delete(`/api/notes/${note.id}`)
+        .set('Authorization', testState.authToken);
+      expect(response.status).toBe(204);
+    });
+
+    it('should reject delete with different user', async (): Promise<void> => {
+      if (!testState.app || !testState.createdNoteId) {
+        throw new Error('App not initialized or test note not created');
+      }
+      const response = await request(testState.app)
+        .delete(`/api/notes/${testState.createdNoteId}`)
+        .set('Authorization', 'Bearer different-user-456');
+      expect(response.status).toBe(403);
       expect(response.body).toHaveProperty('error');
     });
   });
