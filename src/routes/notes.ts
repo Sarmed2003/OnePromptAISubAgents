@@ -56,7 +56,8 @@ router.get('/:id', authMiddleware, (req: Request, res: Response, next: NextFunct
     const { id } = req.params;
     const note = notesDb[id];
     if (!note) {
-      return res.status(404).json({ error: 'Note not found' });
+      res.status(404).json({ error: 'Note not found' });
+      return;
     }
     res.status(200).json(note);
   } catch (err) {
@@ -80,10 +81,12 @@ router.put('/:id', authMiddleware, (req: Request, res: Response, next: NextFunct
     }
     const note = notesDb[id];
     if (!note) {
-      return res.status(404).json({ error: 'Note not found' });
+      res.status(404).json({ error: 'Note not found' });
+      return;
     }
     if (note.userId !== userId) {
-      return res.status(403).json({ error: 'Forbidden' });
+      res.status(403).json({ error: 'Forbidden' });
+      return;
     }
     note.title = title;
     note.content = content;
@@ -104,10 +107,12 @@ router.delete('/:id', authMiddleware, (req: Request, res: Response, next: NextFu
     const { id } = req.params;
     const note = notesDb[id];
     if (!note) {
-      return res.status(404).json({ error: 'Note not found' });
+      res.status(404).json({ error: 'Note not found' });
+      return;
     }
     if (note.userId !== userId) {
-      return res.status(403).json({ error: 'Forbidden' });
+      res.status(403).json({ error: 'Forbidden' });
+      return;
     }
     delete notesDb[id];
     res.status(204).send();
