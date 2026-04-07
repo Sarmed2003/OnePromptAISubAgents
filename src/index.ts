@@ -1,13 +1,12 @@
-import logger from './middleware/logging';
 import app from './app';
+import { logger } from './lib/utils';
 
-const port: number | string = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3000;
 
-const server = app.listen(port, () => {
-  logger.info(`Server running on port ${port}`);
+const server = app.listen(PORT, () => {
+  logger.info(`Server running on port ${PORT}`);
 });
 
-// Graceful shutdown
 process.on('SIGTERM', () => {
   logger.info('SIGTERM received, shutting down gracefully');
   server.close(() => {

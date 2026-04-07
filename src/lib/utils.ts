@@ -1,42 +1,34 @@
-export interface ErrorResponse {
-  error: {
-    message: string;
-    code: string;
-  };
+interface LoggerInterface {
+  info(message: string, meta?: unknown): void;
+  error(message: string, error?: unknown): void;
+  warn(message: string, meta?: unknown): void;
+  debug(message: string, meta?: unknown): void;
 }
 
-export function generateId(): string {
-  return `note-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
-}
+class Logger implements LoggerInterface {
+  private logLevel: string;
 
-export function getCurrentTimestamp(): string {
-  return new Date().toISOString();
-}
-
-export function formatError(message: string, code: string): ErrorResponse {
-  return {
-    error: {
-      message,
-      code,
-    },
-  };
-}
-
-export function validateEmail(email: string): boolean {
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return emailRegex.test(email);
-}
-
-export function validateNote(note: unknown): note is { id: string; title: string; content: string; createdAt: string; updatedAt: string } {
-  if (typeof note !== 'object' || note === null) {
-    return false;
+  constructor() {
+    this.logLevel = process.env.LOG_LEVEL || 'info';
   }
-  const n = note as Record<string, unknown>;
-  return (
-    typeof n.id === 'string' &&
-    typeof n.title === 'string' &&
-    typeof n.content === 'string' &&
-    typeof n.createdAt === 'string' &&
-    typeof n.updatedAt === 'string'
-  );
+
+  info(message: string, meta?: unknown): void {
+    console.log(`[INFO] ${message}`, meta ? JSON.stringify(meta) : '');
+  }
+
+  error(message: string, error?: unknown): void {
+    console.error(`[ERROR] ${message}`, error ? JSON.stringify(error) : '');
+  }
+
+  warn(message: string, meta?: unknown): void {
+    console.warn(`[WARN] ${message}`, meta ? JSON.stringify(meta) : '');
+  }
+
+  debug(message: string, meta?: unknown): void {
+    if (this.logLevel === 'debug') {
+      console.log(`[DEBUG] ${message}`, meta ? JSON.stringify(meta) : '');
+    }
+  }
 }
+
+export const logger = new Logger();
