@@ -1,6 +1,10 @@
 import { Request, Response, NextFunction } from 'express';
 import { formatError } from '../lib/utils';
 
+export interface AuthenticatedRequest extends Request {
+  userId?: string;
+}
+
 interface RateLimitStore {
   [userId: string]: {
     count: number;
@@ -13,12 +17,12 @@ const RATE_LIMIT_WINDOW_MS = 60000; // 1 minute
 const RATE_LIMIT_MAX_REQUESTS = 100; // 100 requests per minute
 
 export function rateLimitMiddleware(
-  req: Request,
+  req: AuthenticatedRequest,
   res: Response,
   next: NextFunction
 ): void {
-  const userId = (req as any).userId || req.ip || 'anonymous';
-  const now = Date.now();
+  const userId: string = req.userId || req.ip || 'anonymous';
+  const now: number = Date.now();
 
   // Initialize or reset user's rate limit counter
   if (!rateLimitStore[userId]) {
@@ -40,9 +44,9 @@ export function rateLimitMiddleware(
   userLimit.count += 1;
 
   // Calculate remaining requests and reset time
-  const remaining = Math.max(0, RATE_LIMIT_MAX_REQUESTS - userLimit.count);
-  const resetTime = userLimit.resetTime;
-  const retryAfter = Math.ceil((resetTime - now) / 1000);
+  const remaining: number = Math.max(0, RATE_LIMIT_MAX_REQUESTS - userLimit.count);
+  const resetTime: number = userLimit.resetTime;
+  const retryAfter: number = Math.ceil((resetTime - now) / 1000);
 
   // Set rate limit headers
   res.setHeader('X-RateLimit-Limit', RATE_LIMIT_MAX_REQUESTS);
@@ -71,5 +75,6 @@ export function errorHandler(
   _next: NextFunction
 ): void {
   console.error('Error:', err);
-  res.status(500).json(formatError('Internal server error', 'INTERNAL_ERROR'));
+  const errorMessage: string = err instanceof Error ? err.message : 'Internal server error';
+  res.status(500).json(formatError(errorMessage, 'INTERNAL_ERROR'));
 }
