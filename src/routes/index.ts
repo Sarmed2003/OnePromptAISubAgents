@@ -16,26 +16,26 @@ const router = Router();
 router.use(rateLimitMiddleware);
 
 // Health check endpoint (public)
-router.get('/health', (req: Request, res: Response) => {
+router.get('/health', (req: Request, res: Response): void => {
   getHealth(req, res);
 });
 
 // Notes endpoints
-router.get('/api/notes', (req: Request, res: Response) => {
+router.get('/api/notes', (req: Request, res: Response): void => {
   getAllNotes(req, res);
 });
 
 router.post(
   '/api/notes',
   authMiddleware,
-  (req: Request, res: Response) => {
+  (req: Request, res: Response): void => {
     createNote(req, res);
   }
 );
 
 router.get(
   '/api/notes/:id',
-  (req: Request, res: Response) => {
+  (req: Request, res: Response): void => {
     getNoteById(req, res);
   }
 );
@@ -44,7 +44,7 @@ router.put(
   '/api/notes/:id',
   authMiddleware,
   resourceOwnershipMiddleware,
-  (req: Request, res: Response) => {
+  (req: Request, res: Response): void => {
     updateNote(req, res);
   }
 );
@@ -53,7 +53,7 @@ router.delete(
   '/api/notes/:id',
   authMiddleware,
   resourceOwnershipMiddleware,
-  (req: Request, res: Response) => {
+  (req: Request, res: Response): void => {
     deleteNote(req, res);
   }
 );
