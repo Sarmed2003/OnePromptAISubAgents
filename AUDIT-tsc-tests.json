@@ -1,1 +1,0 @@
-{"errors": [], "summary": {"totalErrors": 0, "fileCount": 0, "auditStatus": "No tests/ directory found or no TypeScript files present", "executedCommand": "tsc --noEmit tests/", "timestamp": "2024"}}

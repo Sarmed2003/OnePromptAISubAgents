@@ -21,7 +21,7 @@ vault/runs/*
 node_modules/
 .DS_Store
 
-# Node / TS demo (root package.json)
+# Node (e.g. dinolab/web); root no longer has package.json
 *.pnp
 .pnp.js
 coverage/

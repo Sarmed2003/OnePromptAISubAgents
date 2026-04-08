@@ -132,7 +132,7 @@ def _exit_strict_if_failed(config: AppConfig, metrics: RunMetrics) -> None:
 @click.option("--reset", is_flag=True, help="Reset target repo to initial commit")
 @click.option("--debug", is_flag=True, help="Enable debug logging")
 @click.option("--max-workers", type=int, default=None, help="Override max parallel workers")
-@click.option("--template", type=str, default=None, help="Template pack (e.g., api-platform)")
+@click.option("--template", type=str, default=None, help="Template pack under templates/<name>/ (optional)")
 @click.option("--vault", type=click.Path(), default=None, help="Path to knowledge vault directory")
 @click.option("--gource", is_flag=True, help="Use per-agent git identities for Gource visualization")
 def cli(

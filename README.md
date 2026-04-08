@@ -169,6 +169,8 @@ OnePromptAI/
 │   ├── subplanner.md       # Subplanner system prompt
 │   ├── worker.md           # Worker system prompt
 │   └── reconciler.md       # Reconciler system prompt
+├── dinolab/                # DINOLAB web UI + SAM infra (see dinolab/README.md)
+├── templates/              # Optional prompt overlays (see templates/README.md)
 ├── examples/
 │   └── example/
 │       ├── SPEC.md         # Example project specification
@@ -176,6 +178,8 @@ OnePromptAI/
 │       ├── ENTRY_POINT.md  # Project entry point docs
 │       ├── DECISIONS.md    # Architecture decisions
 │       └── RUNBOOK.md      # Operational runbook
+├── scripts/
+│   └── gource-dinolab.sh   # Gource helper for target-repo history
 ├── requirements.txt
 ├── pyproject.toml
 └── .env.example
@@ -189,7 +193,7 @@ MIT
 
 - **dinolab/web/** — Vite + React DINOLAB UI. For Vercel, set the project **Root Directory** to `dinolab/web`.
 - **oneprompt/** — Python multi-agent orchestrator (swarm).
-- **src/**, **tests/** — TypeScript Express “DemoPulse” demo from earlier agent runs; use root `package.json` for `npm run lint`, `npm run test`, `npm run build`.
+- **templates/** — optional prompt overlays for `main.py` / `TEMPLATE` env (see `templates/README.md`).
 
 ### Vercel: “Deployment was canceled … unverified commit”
 
