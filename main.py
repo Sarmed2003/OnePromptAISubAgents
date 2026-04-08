@@ -66,6 +66,10 @@ def _print_output_hints(config: AppConfig) -> None:
     if target.is_dir() and (target / ".git").is_dir():
         click.echo(f"    Gource (run here):    cd {target} && gource")
         click.echo(
+            "    Gource (helper):      ./scripts/gource-dinolab.sh   "
+            "(use integer --auto-skip-seconds ≥ 1; 0 is invalid)"
+        )
+        click.echo(
             "    Gource → MP4:         brew install ffmpeg; then from target dir: "
             "gource -1920x1080 -o - | ffmpeg -y -r 60 -f image2pipe -vcodec ppm -i - "
             "-c:v libx264 -preset ultrafast -pix_fmt yuv420p demo.mp4"
