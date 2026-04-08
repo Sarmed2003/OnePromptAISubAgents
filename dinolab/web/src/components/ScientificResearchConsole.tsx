@@ -2,6 +2,7 @@ import { type FormEvent, useState } from "react";
 import type { BoneRecord, DinosaurSpecies } from "../data/types";
 import { isResearchComingSoon, isVercelHostedResearchUI } from "../config";
 import { useAgentAsk } from "../hooks/useAgentAsk";
+import { PROJECT } from "../project";
 import locoMascotUrl from "../assets/loco-mascot.png";
 import researchMascotUrl from "../assets/research-mascot.png";
 
@@ -42,6 +43,8 @@ export function ScientificResearchConsole({ open, onClose, species, bone }: Prop
   };
 
   if (comingSoon && vercelHostedUi) {
+    const hostedHost =
+      typeof window !== "undefined" ? window.location.hostname : PROJECT.vercelHost;
     const profileLead = bone
       ? `${bone.label} (${bone.scientificName}) — ${bone.description}`
       : species.notes;
@@ -51,8 +54,12 @@ export function ScientificResearchConsole({ open, onClose, species, bone }: Prop
         <div className="research-modal research-modal--vercel-hosted hologram-panel pixel-corners">
           <header className="research-modal__head">
             <div>
-              <h2 id="research-title">Multi-agent research console</h2>
-              <p className="research-modal__sub">Hosted preview · research offline here</p>
+              <h2 id="research-title">
+                {PROJECT.appName} — multi-agent research console
+              </h2>
+              <p className="research-modal__sub">
+                {PROJECT.githubRepo} · {hostedHost} · Bedrock Q&amp;A offline on the public web
+              </p>
             </div>
             <button type="button" className="btn-close pixel-corners" onClick={onClose} aria-label="Close">
               ✕
@@ -65,11 +72,15 @@ export function ScientificResearchConsole({ open, onClose, species, bone }: Prop
               <h3 className="research-vercel__accent">Dinosaur profile</h3>
               <p className="research-vercel__profile-name">{species.binomial}</p>
               <p className="research-vercel__body">{profileLead}</p>
-              <h3 className="research-vercel__accent">Loco</h3>
+              <h3 className="research-vercel__accent">Loco · {PROJECT.subtitle}</h3>
               <p className="research-vercel__body">
-                Our mascot Loco and their companion mark this console while the Bedrock research agent stays
-                disabled on the public site. Run DINOLAB locally with your API bridge to ask questions against
-                the full model.
+                Loco rides along while this hosted build ({hostedHost}) keeps Amazon Bedrock research
+                turned off for visitors. The live stack ships from{" "}
+                <strong>{PROJECT.githubRepo}</strong> alongside the {PROJECT.orchestrator} swarm. Clone the
+                repo, run <code className="research-vercel__code">dinolab/web</code> with{" "}
+                <code className="research-vercel__code">VITE_API_URL</code> pointed at your ask endpoint (e.g.{" "}
+                <code className="research-vercel__code">local_ask_server.py</code> on port 8788) to use the
+                full research console with your API keys—never on this public page.
               </p>
             </div>
             <div className="research-vercel__mascot-wrap">

@@ -6,7 +6,8 @@ import { LayerToggle } from "./components/LayerToggle";
 import { ScientificResearchConsole } from "./components/ScientificResearchConsole";
 import { SPECIES } from "./data/species";
 import type { AnatomyLayer, BoneRecord } from "./data/types";
-import { API_URL, isResearchComingSoon } from "./config";
+import { API_URL, isResearchComingSoon, isVercelHostedResearchUI } from "./config";
+import { PROJECT } from "./project";
 
 const DEFAULT_LAYERS: AnatomyLayer[] = ["skeleton", "muscle", "soft"];
 
@@ -17,6 +18,7 @@ export default function App() {
   const [selectedBone, setSelectedBone] = useState<BoneRecord | null>(null);
   const [researchOpen, setResearchOpen] = useState(false);
   const researchSoon = isResearchComingSoon();
+  const vercelHosted = isVercelHostedResearchUI();
 
   useEffect(() => {
     setSelectedBone(null);
@@ -50,7 +52,15 @@ export default function App() {
           <span
             className={`pill ${API_URL && !researchSoon ? "pill--live" : "pill--local"}`}
           >
-            {researchSoon ? "Research · soon" : API_URL ? "API linked" : "Local preview"}
+            {researchSoon
+              ? vercelHosted
+                ? `${PROJECT.appName} · ${
+                    typeof window !== "undefined" ? window.location.hostname : PROJECT.vercelHost
+                  }`
+                : "Research · soon"
+              : API_URL
+                ? "API linked"
+                : "Local preview"}
           </span>
           <button
             type="button"

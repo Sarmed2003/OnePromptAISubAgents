@@ -750,6 +750,15 @@ body {
   line-height: 1.5;
 }
 
+.research-vercel__code {
+  font-family: var(--font-mono);
+  font-size: 0.78em;
+  color: var(--cyan);
+  padding: 0 0.15em;
+  background: rgba(0, 0, 0, 0.35);
+  border-radius: 2px;
+}
+
 .research-vercel__mascot-wrap {
   display: flex;
   align-items: flex-start;
