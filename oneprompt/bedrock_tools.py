@@ -19,6 +19,29 @@ def _load_env() -> None:
     load_dotenv(env_path, override=False)
 
 
+def _ensure_boto3() -> None:
+    """Fail fast with install instructions if boto3 is missing (common when not using .venv)."""
+    try:
+        import boto3  # noqa: F401
+    except ModuleNotFoundError:
+        root = Path(__file__).resolve().parent.parent
+        print(
+            "ModuleNotFoundError: No module named 'boto3'.\n\n"
+            "You are using a Python that does not have project dependencies installed.\n"
+            "Install from the OnePromptAI repository root (recommended):\n"
+            f"  cd {root}\n"
+            "  python3 -m venv .venv\n"
+            "  source .venv/bin/activate   # Windows: .venv\\Scripts\\activate\n"
+            "  pip install -r requirements.txt\n"
+            "  python -m oneprompt.bedrock_tools test\n\n"
+            "Or use the venv interpreter directly without activating:\n"
+            f"  {root}/.venv/bin/python -m oneprompt.bedrock_tools test\n\n"
+            "If you use conda instead: conda install boto3",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+
 def _boto_kwargs(region: str) -> dict[str, str]:
     kw: dict[str, str] = {"region_name": region}
     ak = os.getenv("AWS_ACCESS_KEY_ID", "")
@@ -94,6 +117,7 @@ def check_bedrock_model(model_id: str | None = None, region: str | None = None) 
 
 def main() -> None:
     _load_env()
+    _ensure_boto3()
 
     if len(sys.argv) > 1 and sys.argv[1] in ("-h", "--help"):
         print(

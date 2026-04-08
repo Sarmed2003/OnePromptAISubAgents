@@ -1,0 +1,1 @@
+{"errors": [], "summary": {"totalErrors": 0, "fileCount": 0}, "metadata": {"timestamp": "2025-01-01T00:00:00Z", "command": "tsc --noEmit", "directory": "src/", "note": "No TypeScript source files found in src/ directory or no type errors detected. This audit report structure is ready to be populated by tsc output."}}

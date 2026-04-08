@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import time
+from collections import deque
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -35,7 +36,7 @@ class MergeQueue:
     def __init__(self, git: GitRepo, strategy: str = "merge-commit"):
         self.git = git
         self.strategy = strategy
-        self._queue: list[Task] = []
+        self._queue: deque[Task] = deque()
         self._results: list[MergeResult] = []
         self.total_merged = 0
         self.total_conflicts = 0
@@ -49,7 +50,7 @@ class MergeQueue:
         if not self._queue:
             return None
 
-        task = self._queue.pop(0)
+        task = self._queue.popleft()
         branch = _resolved_branch(task)
         logger.info("Merging branch: %s (task.branch=%r)", branch, task.branch)
 

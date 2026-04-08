@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#0d1f1a">
+    <title>Temple Dash - Claw'd's Escape</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <canvas id="renderCanvas"></canvas>
+
+    <div id="hud">
+        <div class="hud-item">
+            <span class="hud-label">SCORE</span>
+            <span class="hud-value" id="scoreDisplay">0</span>
+        </div>
+        <div class="hud-item">
+            <span class="hud-label">SPEED</span>
+            <span class="hud-value" id="speedDisplay">0</span>
+        </div>
+    </div>
+
+    <div id="gameOverModal">
+        <div class="modal-content">
+            <h1 class="modal-title">GAME OVER</h1>
+            <p class="modal-score-label">Final Score</p>
+            <div class="modal-score" id="finalScore">0</div>
+            <button class="modal-button" id="restartButton">RUN AGAIN</button>
+            <p class="modal-hint">Press SPACE or tap to restart</p>
+        </div>
+    </div>
+
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.6/dist/purify.min.js"></script>
+
+    <script src="js/scene.js"></script>
+    <script src="js/ground.js"></script>
+    <script src="js/player.js"></script>
+    <script src="js/obstacles.js"></script>
+    <script src="js/coins.js"></script>
+    <script src="js/input.js"></script>
+    <script src="js/collision.js"></script>
+    <script src="js/particles.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/game.js"></script>
+</body>
+</html>

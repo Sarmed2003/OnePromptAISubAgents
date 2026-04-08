@@ -19,6 +19,7 @@ class DatabaseBackend(Protocol):
 
     def connect(self) -> bool: ...
     def upsert_task(self, task_dict: dict[str, Any]) -> None: ...
+    def upsert_tasks_batch(self, tasks: list[dict[str, Any]]) -> None: ...
     def log_event(self, event_type: str, data: dict[str, Any]) -> None: ...
     def save_run_metrics(self, metrics: dict[str, Any]) -> None: ...
     def get_tasks(self, status: str | None = None) -> list[dict[str, Any]]: ...
@@ -112,6 +113,16 @@ class DynamoDBBackend:
             self._tables["tasks"].put_item(Item=clean)
         except Exception as e:
             logger.debug("DynamoDB upsert_task failed: %s", e)
+
+    def upsert_tasks_batch(self, tasks: list[dict[str, Any]]) -> None:
+        if not self._connected or not tasks:
+            return
+        try:
+            with self._tables["tasks"].batch_writer() as batch:
+                for task_dict in tasks:
+                    batch.put_item(Item=self._sanitize_for_dynamo(task_dict))
+        except Exception as e:
+            logger.debug("DynamoDB batch upsert failed: %s", e)
 
     def log_event(self, event_type: str, data: dict[str, Any]) -> None:
         if not self._connected:
@@ -218,6 +229,16 @@ class MongoDBBackend:
             {"id": task_dict["id"]}, {"$set": task_dict}, upsert=True
         )
 
+    def upsert_tasks_batch(self, tasks: list[dict[str, Any]]) -> None:
+        if not self._connected or not tasks:
+            return
+        from pymongo import UpdateOne
+        ops = [
+            UpdateOne({"id": t["id"]}, {"$set": t}, upsert=True)
+            for t in tasks
+        ]
+        self._db["tasks"].bulk_write(ops)
+
     def log_event(self, event_type: str, data: dict[str, Any]) -> None:
         if not self._connected:
             return
@@ -265,6 +286,10 @@ class InMemoryBackend:
 
     def upsert_task(self, task_dict: dict[str, Any]) -> None:
         self._tasks[task_dict["id"]] = task_dict
+
+    def upsert_tasks_batch(self, tasks: list[dict[str, Any]]) -> None:
+        for t in tasks:
+            self._tasks[t["id"]] = t
 
     def log_event(self, event_type: str, data: dict[str, Any]) -> None:
         self._events.append({"type": event_type, "data": data, "timestamp": time.time()})

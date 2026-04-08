@@ -22,6 +22,23 @@ _JSON_SUFFIX = (
 )
 
 
+def _find_json_string_end(text: str, start: int) -> int:
+    """Find the closing quote of a JSON string value, respecting escape sequences.
+
+    Returns the index of the closing quote, or -1 if the string is unterminated.
+    """
+    i = start
+    while i < len(text):
+        ch = text[i]
+        if ch == "\\":
+            i += 2
+            continue
+        if ch == '"':
+            return i
+        i += 1
+    return -1
+
+
 class LLMClient:
     """Unified LLM interface: Bedrock Converse, Gemini, or Ollama.
 
@@ -42,6 +59,7 @@ class LLMClient:
         self._gemini_client = None
         self._bedrock_client = None
         self._ollama_available: bool | None = None
+        self._ollama_session: aiohttp.ClientSession | None = None
 
         if config.provider == "gemini":
             try:
@@ -52,6 +70,11 @@ class LLMClient:
 
         if config.provider == "bedrock":
             self._bedrock_client = self._make_bedrock_client()
+
+        mc = config.max_concurrent_requests or 0
+        self._llm_limit: asyncio.Semaphore | None = (
+            asyncio.Semaphore(mc) if mc > 0 else None
+        )
 
     def _make_bedrock_client(self):
         import boto3
@@ -69,6 +92,21 @@ class LLMClient:
     # ------------------------------------------------------------------
 
     async def generate(
+        self,
+        system_prompt: str,
+        user_prompt: str,
+        response_format: str = "text",
+    ) -> str:
+        if self._llm_limit is not None:
+            async with self._llm_limit:
+                return await self._generate_inner(
+                    system_prompt, user_prompt, response_format
+                )
+        return await self._generate_inner(
+            system_prompt, user_prompt, response_format
+        )
+
+    async def _generate_inner(
         self,
         system_prompt: str,
         user_prompt: str,
@@ -142,6 +180,13 @@ class LLMClient:
                 usage = response.get("usage") or {}
                 self.total_tokens += int(usage.get("inputTokens") or 0)
                 self.total_tokens += int(usage.get("outputTokens") or 0)
+                stop = response.get("stopReason", "")
+                if stop == "max_tokens":
+                    logger.warning(
+                        "Bedrock output truncated (hit %d token limit). "
+                        "Consider increasing BEDROCK_MAX_OUTPUT_TOKENS.",
+                        max_out,
+                    )
                 return text
             except Exception as e:
                 last_err = e
@@ -260,17 +305,19 @@ class LLMClient:
         for attempt in range(MAX_RETRIES):
             try:
                 self._request_count += 1
-                response = self._gemini_client.models.generate_content(
+                config = types.GenerateContentConfig(
+                    system_instruction=system_prompt,
+                    temperature=self.config.temperature,
+                    max_output_tokens=self.config.max_tokens,
+                    response_mime_type=(
+                        "application/json" if response_format == "json" else "text/plain"
+                    ),
+                )
+                response = await asyncio.to_thread(
+                    self._gemini_client.models.generate_content,
                     model=self.config.model,
                     contents=user_prompt,
-                    config=types.GenerateContentConfig(
-                        system_instruction=system_prompt,
-                        temperature=self.config.temperature,
-                        max_output_tokens=self.config.max_tokens,
-                        response_mime_type=(
-                            "application/json" if response_format == "json" else "text/plain"
-                        ),
-                    ),
+                    config=config,
                 )
 
                 if response.usage_metadata:
@@ -322,12 +369,13 @@ class LLMClient:
             payload["format"] = "json"
 
         self._request_count += 1
-        async with aiohttp.ClientSession() as session:
-            async with session.post(url, json=payload, timeout=aiohttp.ClientTimeout(total=300)) as resp:
-                if resp.status != 200:
-                    body = await resp.text()
-                    raise RuntimeError(f"Ollama returned {resp.status}: {body[:300]}")
-                data = await resp.json()
+        if self._ollama_session is None or self._ollama_session.closed:
+            self._ollama_session = aiohttp.ClientSession()
+        async with self._ollama_session.post(url, json=payload, timeout=aiohttp.ClientTimeout(total=300)) as resp:
+            if resp.status != 200:
+                body = await resp.text()
+                raise RuntimeError(f"Ollama returned {resp.status}: {body[:300]}")
+            data = await resp.json()
 
         text = data.get("message", {}).get("content", "")
         if data.get("eval_count"):
@@ -378,8 +426,63 @@ class LLMClient:
             logger.warning("Failed to parse JSON, attempting extraction...")
             json_match = re.search(r'[\[{].*[\]}]', raw, re.DOTALL)
             if json_match:
-                return json.loads(json_match.group(0))
+                try:
+                    return json.loads(json_match.group(0))
+                except json.JSONDecodeError:
+                    pass
+            repaired = self._repair_truncated_json(raw)
+            if repaired is not None:
+                logger.info("Repaired truncated JSON — salvaged partial output")
+                return repaired
             raise
+
+    @staticmethod
+    def _repair_truncated_json(raw: str) -> dict[str, Any] | None:
+        """Attempt to salvage a truncated JSON worker response.
+
+        When the LLM hits the max_tokens limit, the JSON is cut mid-string.
+        This extracts complete "path": "content" pairs from the "files" object
+        and builds a valid partial response so the worker can commit whatever
+        files were fully generated.
+        """
+        files_match = re.search(r'"files"\s*:\s*\{', raw)
+        if not files_match:
+            return None
+
+        files: dict[str, str] = {}
+        pos = files_match.end()
+        file_pattern = re.compile(
+            r'"([^"]+)"\s*:\s*"',
+            re.DOTALL,
+        )
+
+        while pos < len(raw):
+            m = file_pattern.search(raw, pos)
+            if not m:
+                break
+            path = m.group(1)
+            content_start = m.end()
+            content_end = _find_json_string_end(raw, content_start)
+            if content_end == -1:
+                break
+            content = raw[content_start:content_end]
+            content = content.replace("\\n", "\n").replace('\\"', '"').replace("\\\\", "\\").replace("\\t", "\t")
+            files[path] = content
+            pos = content_end + 1
+
+        if not files:
+            return None
+
+        return {
+            "files": files,
+            "handoff": {
+                "status": "partial",
+                "summary": f"Output was truncated by token limit; salvaged {len(files)} complete file(s).",
+                "filesChanged": list(files.keys()),
+                "concerns": ["LLM output was truncated — some files may be missing."],
+                "suggestions": [],
+            },
+        }
 
     # ------------------------------------------------------------------
     # High-level agent methods
@@ -412,28 +515,51 @@ Each task: {{"id": "task-NNN", "description": "...", "scope": ["file1.py"], "acc
         task: dict[str, Any],
         file_contents: dict[str, str],
     ) -> dict[str, Any]:
-        files_section = ""
-        for path, content in file_contents.items():
-            files_section += f"\n### {path}\n```\n{content}\n```\n"
+        files_section = "\n".join(
+            f"\n### {path}\n```\n{content}\n```\n"
+            for path, content in file_contents.items()
+        )
 
+        scope_list = task.get("scope", []) or []
+        if not isinstance(scope_list, list):
+            scope_list = [str(scope_list)]
+        scope_list = [str(x) for x in scope_list if str(x).strip()]
+        scope_str = ", ".join(scope_list) if scope_list else "(empty — repo-wide; use any paths needed)"
+        if scope_list:
+            scope_rule = (
+                f"**CRITICAL:** Only output files under your scope: {scope_str}. "
+                "Keys outside scope are dropped by the runner."
+            )
+            example_path = scope_list[0]
+            files_instruction = (
+                f'Your \"files\" keys MUST be within scope. Example key: \"{example_path}\"'
+            )
+        else:
+            scope_rule = (
+                "**CRITICAL:** Scope is empty — this is a repo-wide task (e.g. consolidation). "
+                "Use Current File Contents; output every file path you change with full content."
+            )
+            files_instruction = 'Use real paths as \"files\" keys (e.g. \"src/app.ts\").'
         user_msg = f"""## Your Task
 - **ID**: {task['id']}
 - **Description**: {task['description']}
-- **Scope**: {', '.join(task.get('scope', []))}
+- **Scope**: {scope_str}
 - **Acceptance Criteria**: {task.get('acceptance', 'N/A')}
 
-## Current File Contents
-{files_section if files_section else 'No existing files in scope — create from scratch.'}
+{scope_rule}
 
-Generate the complete implementation. Respond with a JSON object:
+## Current File Contents
+{files_section if files_section else 'No files loaded — infer from task or create minimal structure.'}
+
+Generate the complete implementation. {files_instruction} Respond with a JSON object:
 {{
   "files": {{
-    "path/to/file.py": "complete file content..."
+    "{example_path if scope_list else 'path/to/real/file.ext'}": "complete file content..."
   }},
   "handoff": {{
     "status": "complete|partial|blocked|failed",
     "summary": "What you did...",
-    "filesChanged": ["path/to/file.py"],
+    "filesChanged": ["{example_path if scope_list else 'path/to/real/file.ext'}"],
     "concerns": ["any concerns"],
     "suggestions": ["follow-up ideas"]
   }}

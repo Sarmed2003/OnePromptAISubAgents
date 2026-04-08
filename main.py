@@ -4,10 +4,14 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import subprocess
 import sys
 import time
 import threading
 from pathlib import Path
+
+from oneprompt.config import AppConfig
+from oneprompt.types import RunMetrics
 
 import click
 from dotenv import load_dotenv
@@ -26,10 +30,96 @@ def setup_logging(level: str = "info", to_stderr: bool = False) -> None:
     logging.root.setLevel(numeric_level)
 
 
+def _print_run_summary(config: AppConfig, metrics: RunMetrics) -> None:
+    click.echo(f"\n{'='*60}")
+    click.echo("  OnePromptAI Run Complete")
+    click.echo(f"{'='*60}")
+    eff_total = max(
+        metrics.total_tasks,
+        metrics.completed_tasks + metrics.failed_tasks,
+        1,
+    )
+    click.echo(f"  Tasks:      {metrics.completed_tasks}/{eff_total} completed")
+    click.echo(f"  Failed:     {metrics.failed_tasks}")
+    click.echo(f"  Commits:    {metrics.total_commits}")
+    click.echo(f"  Tokens:     {metrics.total_tokens:,}")
+    click.echo(f"  Duration:   {metrics.elapsed_seconds:.1f}s")
+    click.echo(f"  Success:    {metrics.success_rate:.1f}%")
+    if metrics.strict_phase_errors:
+        click.echo(f"  Phase errors: {metrics.strict_phase_errors} (strict SDLC)")
+    if metrics.failed_tasks and getattr(metrics, "failed_task_ids", None):
+        ids = metrics.failed_task_ids[:15]
+        extra = len(metrics.failed_task_ids) - len(ids)
+        suffix = f" (+{extra} more)" if extra > 0 else ""
+        click.echo(f"  Failed IDs:  {', '.join(ids)}{suffix}")
+    click.echo(f"{'='*60}")
+
+
+def _print_output_hints(config: AppConfig) -> None:
+    """Where generated code and artifacts live (target repo, vault, Gource)."""
+    root = Path.cwd()
+    target = Path(config.orchestrator.target_repo_path)
+    if not target.is_absolute():
+        target = (root / target).resolve()
+    click.echo("\n  Output & next steps:")
+    click.echo(f"    Target repo (clone):  {target}")
+    if target.is_dir() and (target / ".git").is_dir():
+        click.echo(f"    Gource (run here):    cd {target} && gource")
+        click.echo(
+            "    Gource → MP4:         brew install ffmpeg; then from target dir: "
+            "gource -1920x1080 -o - | ffmpeg -y -r 60 -f image2pipe -vcodec ppm -i - "
+            "-c:v libx264 -preset ultrafast -pix_fmt yuv420p demo.mp4"
+        )
+    else:
+        click.echo("    (Target path missing — check TARGET_REPO_PATH and last run logs.)")
+    if config.vault.enabled:
+        vp = Path(config.vault.path)
+        if not vp.is_absolute():
+            vp = (root / vp).resolve()
+        click.echo(f"    Vault run summaries:  {vp / 'runs'}")
+    try:
+        r = subprocess.run(
+            ["git", "remote", "-v"],
+            cwd=root,
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        if r.returncode != 0 or not r.stdout.strip():
+            click.echo(
+                "    Push OnePromptAI:       git remote add origin <url> && git push -u origin main"
+            )
+    except (OSError, subprocess.TimeoutExpired):
+        pass
+    click.echo("")
+
+
+def _exit_strict_if_failed(config: AppConfig, metrics: RunMetrics) -> None:
+    if not config.orchestrator.strict_sdlc:
+        return
+    if metrics.failed_tasks or metrics.strict_phase_errors:
+        click.echo(
+            f"\nStrict SDLC: process exited with errors "
+            f"(failed_tasks={metrics.failed_tasks}, "
+            f"strict_phase_errors={metrics.strict_phase_errors}).",
+            err=True,
+        )
+        click.echo(
+            "Fix the issues above or set STRICT_SDLC=false for a more forgiving run.",
+            err=True,
+        )
+        sys.exit(1)
+
+
 @click.command()
 @click.argument("prompt")
 @click.option("--spec", type=click.Path(exists=True), help="Path to SPEC.md file")
-@click.option("--dashboard", is_flag=True, help="Enable Rich terminal dashboard")
+@click.option("--dashboard", is_flag=True, help="Enable Rich terminal dashboard (inline; use another terminal for git)")
+@click.option(
+    "--dashboard-fullscreen",
+    is_flag=True,
+    help="Dashboard uses alternate screen (hides scrollback). Default: inline dashboard.",
+)
 @click.option(
     "--dashboard-auto-exit",
     is_flag=True,
@@ -38,14 +128,21 @@ def setup_logging(level: str = "info", to_stderr: bool = False) -> None:
 @click.option("--reset", is_flag=True, help="Reset target repo to initial commit")
 @click.option("--debug", is_flag=True, help="Enable debug logging")
 @click.option("--max-workers", type=int, default=None, help="Override max parallel workers")
+@click.option("--template", type=str, default=None, help="Template pack (e.g., api-platform)")
+@click.option("--vault", type=click.Path(), default=None, help="Path to knowledge vault directory")
+@click.option("--gource", is_flag=True, help="Use per-agent git identities for Gource visualization")
 def cli(
     prompt: str,
     spec: str | None,
     dashboard: bool,
+    dashboard_fullscreen: bool,
     dashboard_auto_exit: bool,
     reset: bool,
     debug: bool,
     max_workers: int | None,
+    template: str | None,
+    vault: str | None,
+    gource: bool,
 ):
     """Run OnePromptAI with a build prompt.
 
@@ -55,22 +152,38 @@ def cli(
         python main.py --spec examples/example/SPEC.md "Build the project"
         python main.py --dashboard "Build a todo app"
     """
-    from oneprompt.config import AppConfig
+    from oneprompt.config import WorkerConfig, VaultConfig
+
     config = AppConfig.from_env()
 
+    overrides: dict = {}
     if max_workers is not None:
-        from oneprompt.config import WorkerConfig
+        overrides["worker"] = WorkerConfig(
+            max_workers=max_workers,
+            timeout=config.worker.timeout,
+            merge_strategy=config.worker.merge_strategy,
+        )
+    if template is not None:
+        overrides["template"] = template
+    if vault is not None:
+        overrides["vault"] = VaultConfig(
+            enabled=True,
+            path=vault,
+            max_context_chars=config.vault.max_context_chars,
+        )
+    if gource:
+        overrides["gource_agent_ids"] = True
+    if overrides:
         config = AppConfig(
             llm=config.llm,
             git=config.git,
-            worker=WorkerConfig(
-                max_workers=max_workers,
-                timeout=config.worker.timeout,
-                merge_strategy=config.worker.merge_strategy,
-            ),
+            worker=overrides.get("worker", config.worker),
             aws=config.aws,
             database=config.database,
             orchestrator=config.orchestrator,
+            vault=overrides.get("vault", config.vault),
+            template=overrides.get("template", config.template),
+            gource_agent_ids=overrides.get("gource_agent_ids", config.gource_agent_ids),
         )
 
     errors = config.validate()
@@ -90,7 +203,9 @@ def cli(
             build_spec = f"# User Prompt\n{prompt}\n\n{build_spec}"
 
     if dashboard:
-        _run_with_dashboard(config, build_spec, debug, dashboard_auto_exit)
+        _run_with_dashboard(
+            config, build_spec, debug, dashboard_auto_exit, dashboard_fullscreen
+        )
     else:
         setup_logging("debug" if debug else "info")
         asyncio.run(_run_orchestrator(config, build_spec))
@@ -118,16 +233,9 @@ async def _run_orchestrator(config, spec: str):
 
     try:
         metrics = await orchestrator.run(spec)
-        click.echo(f"\n{'='*60}")
-        click.echo(f"  OnePromptAI Run Complete")
-        click.echo(f"{'='*60}")
-        click.echo(f"  Tasks:      {metrics.completed_tasks}/{metrics.total_tasks} completed")
-        click.echo(f"  Failed:     {metrics.failed_tasks}")
-        click.echo(f"  Commits:    {metrics.total_commits}")
-        click.echo(f"  Tokens:     {metrics.total_tokens:,}")
-        click.echo(f"  Duration:   {metrics.elapsed_seconds:.1f}s")
-        click.echo(f"  Success:    {metrics.success_rate:.1f}%")
-        click.echo(f"{'='*60}\n")
+        _print_run_summary(config, metrics)
+        _print_output_hints(config)
+        _exit_strict_if_failed(config, metrics)
     except KeyboardInterrupt:
         click.echo("\nStopping...")
         orchestrator.stop()
@@ -141,6 +249,7 @@ def _run_with_dashboard(
     spec: str,
     debug: bool,
     dashboard_auto_exit: bool,
+    dashboard_fullscreen: bool,
 ):
     """Run orchestrator in-process, feeding NDJSON events directly to the Rich dashboard."""
     from dashboard import Dashboard
@@ -179,7 +288,7 @@ def _run_with_dashboard(
             dashboard.render(),
             console=dashboard.console,
             refresh_per_second=4,
-            screen=True,
+            screen=dashboard_fullscreen,
         ) as live:
             while orch_thread.is_alive():
                 with lock:
@@ -212,15 +321,10 @@ def _run_with_dashboard(
 
     orch_thread.join(timeout=10)
 
-    m = dashboard
-    click.echo(f"\n{'='*60}")
-    click.echo(f"  OnePromptAI Run Complete")
-    click.echo(f"{'='*60}")
-    click.echo(f"  Tasks:      {m.completed_tasks}/{m.total_tasks} completed")
-    click.echo(f"  Failed:     {m.failed_tasks}")
-    click.echo(f"  Commits:    {m.commits}")
-    click.echo(f"  Tokens:     {m.tokens:,}")
-    click.echo(f"{'='*60}\n")
+    om = orchestrator.metrics
+    _print_run_summary(config, om)
+    _print_output_hints(config)
+    _exit_strict_if_failed(config, om)
 
 
 if __name__ == "__main__":

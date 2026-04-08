@@ -24,6 +24,7 @@ class LLMConfig:
     bedrock_model_id: str = ""
     bedrock_region: str = ""
     bedrock_max_output_tokens: int = 8192
+    max_concurrent_requests: int = 0
     aws_access_key_id: str = ""
     aws_secret_access_key: str = ""
     aws_session_token: str = ""
@@ -47,6 +48,7 @@ class LLMConfig:
             bedrock_max_output_tokens=int(
                 os.getenv("BEDROCK_MAX_OUTPUT_TOKENS", "8192")
             ),
+            max_concurrent_requests=int(os.getenv("LLM_MAX_CONCURRENT", "0")),
             aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID", ""),
             aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY", ""),
             aws_session_token=os.getenv("AWS_SESSION_TOKEN", ""),
@@ -84,16 +86,18 @@ class GitConfig:
 
 @dataclass(frozen=True)
 class WorkerConfig:
-    max_workers: int = 3
+    max_workers: int = 8
     timeout: int = 600
     merge_strategy: str = "merge-commit"
+    retry_backoff_sec: float = 1.0
 
     @classmethod
     def from_env(cls) -> WorkerConfig:
         return cls(
-            max_workers=int(os.getenv("MAX_WORKERS", "3")),
+            max_workers=int(os.getenv("MAX_WORKERS", "8")),
             timeout=int(os.getenv("WORKER_TIMEOUT", "600")),
             merge_strategy=os.getenv("MERGE_STRATEGY", "merge-commit"),
+            retry_backoff_sec=float(os.getenv("WORKER_RETRY_BACKOFF_SEC", "1.0")),
         )
 
 
@@ -137,16 +141,56 @@ class OrchestratorConfig:
     health_check_interval: int = 30
     finalization_enabled: bool = True
     finalization_max_attempts: int = 3
+    recovery_max_rounds: int = 0
+    json_retry_backoff_sec: float = 0.75
     log_level: str = "info"
+    architect_enabled: bool = True
+    review_enabled: bool = True
+    qa_enabled: bool = True
+    security_enabled: bool = True
+    devops_enabled: bool = True
+    # When true: no LLM-based phase skipping; phase LLM failures surface as errors;
+    # partial worker handoffs retry until complete or hard fail. See STRICT_SDLC in .env.
+    strict_sdlc: bool = True
+    smart_phase_selection: bool = True
 
     @classmethod
     def from_env(cls) -> OrchestratorConfig:
+        _bool = lambda key, default="true": os.getenv(key, default).lower() == "true"
+        strict = _bool("STRICT_SDLC", "true")
+        smart = _bool("SMART_PHASE_SELECTION", "false" if strict else "true")
+        if strict:
+            smart = False
         return cls(
             target_repo_path=os.getenv("TARGET_REPO_PATH", "./target-repo"),
             health_check_interval=int(os.getenv("HEALTH_CHECK_INTERVAL", "30")),
-            finalization_enabled=os.getenv("FINALIZATION_ENABLED", "true").lower() == "true",
+            finalization_enabled=_bool("FINALIZATION_ENABLED"),
             finalization_max_attempts=int(os.getenv("FINALIZATION_MAX_ATTEMPTS", "3")),
+            recovery_max_rounds=int(os.getenv("RECOVERY_MAX_ROUNDS", "0")),
+            json_retry_backoff_sec=float(os.getenv("ORCHESTRATOR_JSON_RETRY_BACKOFF_SEC", "0.75")),
             log_level=os.getenv("LOG_LEVEL", "info"),
+            architect_enabled=_bool("ARCHITECT_ENABLED"),
+            review_enabled=_bool("REVIEW_ENABLED"),
+            qa_enabled=_bool("QA_ENABLED"),
+            security_enabled=_bool("SECURITY_ENABLED"),
+            devops_enabled=_bool("DEVOPS_ENABLED"),
+            strict_sdlc=strict,
+            smart_phase_selection=smart,
+        )
+
+
+@dataclass(frozen=True)
+class VaultConfig:
+    enabled: bool = True
+    path: str = "./vault"
+    max_context_chars: int = 6000
+
+    @classmethod
+    def from_env(cls) -> VaultConfig:
+        return cls(
+            enabled=os.getenv("VAULT_ENABLED", "true").lower() == "true",
+            path=os.getenv("VAULT_PATH", "./vault"),
+            max_context_chars=int(os.getenv("VAULT_MAX_CONTEXT_CHARS", "6000")),
         )
 
 
@@ -158,6 +202,9 @@ class AppConfig:
     aws: AWSConfig = field(default_factory=AWSConfig)
     database: DatabaseConfig = field(default_factory=DatabaseConfig)
     orchestrator: OrchestratorConfig = field(default_factory=OrchestratorConfig)
+    vault: VaultConfig = field(default_factory=VaultConfig)
+    template: str = ""
+    gource_agent_ids: bool = False
 
     @classmethod
     def from_env(cls) -> AppConfig:
@@ -168,14 +215,29 @@ class AppConfig:
             aws=AWSConfig.from_env(),
             database=DatabaseConfig.from_env(),
             orchestrator=OrchestratorConfig.from_env(),
+            vault=VaultConfig.from_env(),
+            template=os.getenv("TEMPLATE", ""),
+            gource_agent_ids=os.getenv("GOURCE_AGENT_IDS", "false").lower() == "true",
         )
 
     def validate(self) -> list[str]:
         errors: list[str] = []
-        if self.llm.provider == "gemini" and not self.llm.api_key:
+        prov = (self.llm.provider or "").lower().strip()
+        if prov == "gemini" and not self.llm.api_key:
             errors.append("GEMINI_API_KEY is required when LLM_PROVIDER=gemini")
+        if prov == "bedrock" and not (self.llm.bedrock_model_id or "").strip():
+            errors.append("BEDROCK_MODEL_ID is required when LLM_PROVIDER=bedrock")
+        if prov == "ollama" and not (self.llm.ollama_model or "").strip():
+            errors.append("OLLAMA_MODEL is required when LLM_PROVIDER=ollama")
         if not self.git.repo_url:
             errors.append("GIT_REPO_URL is required")
         if not self.git.token:
             errors.append("GIT_TOKEN is required")
+        url = self.git.repo_url.lower()
+        if self.git.repo_url and not (url.startswith("https://") or url.startswith("git@")):
+            errors.append("GIT_REPO_URL should start with https:// or git@")
+        if self.worker.max_workers < 1:
+            errors.append("MAX_WORKERS must be >= 1")
+        if self.llm.max_concurrent_requests < 0:
+            errors.append("LLM_MAX_CONCURRENT must be >= 0")
         return errors

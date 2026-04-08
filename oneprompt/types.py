@@ -23,6 +23,14 @@ class AgentRole(str, Enum):
     SUBPLANNER = "subplanner"
     WORKER = "worker"
     RECONCILER = "reconciler"
+    ARCHITECT = "architect"
+    REVIEWER = "reviewer"
+    QA_TESTER = "qa_tester"
+    SECURITY = "security"
+    DEVOPS = "devops"
+    INTEGRATOR = "integrator"
+    BUNDLER = "bundler"
+    SANDBOX = "sandbox"
 
 
 class MergeStrategy(str, Enum):
@@ -118,10 +126,12 @@ class RunMetrics:
     total_tasks: int = 0
     completed_tasks: int = 0
     failed_tasks: int = 0
+    failed_task_ids: list[str] = field(default_factory=list)
     total_commits: int = 0
     total_tokens: int = 0
     merge_conflicts: int = 0
     agents_active: int = 0
+    strict_phase_errors: int = 0
 
     @property
     def elapsed_seconds(self) -> float:

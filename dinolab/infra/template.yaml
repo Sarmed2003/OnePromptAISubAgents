@@ -1,0 +1,112 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: DINOLAB — HTTP API, Bedrock ask Lambda, S3 assets bucket, DynamoDB query log
+
+Parameters:
+  BedrockModelId:
+    Type: String
+    Description: Inference profile or model ID (e.g. Claude on Bedrock)
+    Default: us.anthropic.claude-haiku-4-5-20251001-v1:0
+  CorsOrigin:
+    Type: String
+    Default: "*"
+    Description: CORS Access-Control-Allow-Origin for browser UI
+
+Globals:
+  Function:
+    Runtime: python3.12
+    Timeout: 90
+    MemorySize: 512
+    Architectures:
+      - x86_64
+
+Resources:
+  DinolabAssetBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      CorsConfiguration:
+        CorsRules:
+          - AllowedHeaders:
+              - "*"
+            AllowedMethods:
+              - GET
+              - PUT
+              - HEAD
+            AllowedOrigins:
+              - "*"
+            MaxAge: 3000
+
+  DinolabQueryLogTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+
+  DinolabHttpApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      CorsConfiguration:
+        AllowMethods:
+          - GET
+          - POST
+          - OPTIONS
+        AllowHeaders:
+          - Content-Type
+          - Authorization
+        AllowOrigins:
+          - !Ref CorsOrigin
+
+  AskFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/ask/
+      Handler: app.handler
+      Environment:
+        Variables:
+          BEDROCK_MODEL_ID: !Ref BedrockModelId
+          QUERY_LOG_TABLE: !Ref DinolabQueryLogTable
+          CORS_ORIGIN: !Ref CorsOrigin
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - bedrock:InvokeModel
+                - bedrock:InvokeModelWithResponseStream
+              Resource: "*"
+        - DynamoDBCrudPolicy:
+            TableName: !Ref DinolabQueryLogTable
+      Events:
+        AskPost:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref DinolabHttpApi
+            Path: /lab/ask
+            Method: POST
+
+Outputs:
+  DinolabApiUrl:
+    Description: Base URL for VITE_API_URL (no trailing slash)
+    Value: !GetAtt DinolabHttpApi.ApiEndpoint
+  DinolabAssetBucketName:
+    Description: S3 bucket for GLTF textures, JSON packs, or synced dist/
+    Value: !Ref DinolabAssetBucket
+  DinolabQueryLogTableName:
+    Description: DynamoDB table storing anonymized query/answer previews (TTL 90d)
+    Value: !Ref DinolabQueryLogTable

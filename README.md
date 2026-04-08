@@ -184,3 +184,9 @@ OnePromptAI/
 ## License
 
 MIT
+
+## Also in this repository
+
+- **dinolab/web/** — Vite + React DINOLAB UI. For Vercel, set the project **Root Directory** to `dinolab/web`.
+- **oneprompt/** — Python multi-agent orchestrator (swarm).
+- **src/**, **tests/** — TypeScript Express “DemoPulse” demo from earlier agent runs; use root `package.json` for `npm run lint`, `npm run test`, `npm run build`.

@@ -20,3 +20,45 @@ vault/runs/*
 .pytest_cache/
 node_modules/
 .DS_Store
+
+# Node / TS demo (root package.json)
+*.pnp
+.pnp.js
+coverage/
+.nyc_output/
+.vitest/
+*.tsbuildinfo
+.env.local
+.env.*.local
+.env.production
+.env.test
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+*.iml
+
+# Logs (npm)
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+pnpm-debug.log*
+
+Thumbs.db
+.cache/
+.turbo/
+*.tgz
+*.zip
+.pid
+*.pid
+
+.github/workflows/*.local.yml
+
+# Audit reports (agent runs)
+AUDIT-*.md
+AUDIT-*.json
+FINAL-*.md

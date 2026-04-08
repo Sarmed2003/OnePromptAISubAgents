@@ -27,11 +27,10 @@ class LocalSandbox:
     """
 
     def __init__(self, main_repo_path: str | Path, git_config: GitConfig):
-        self.main_repo = Path(main_repo_path)
+        self.main_repo = Path(main_repo_path).resolve()
         self.git_config = git_config
         self._worktrees: dict[str, Path] = {}
-        self._sandbox_root = self.main_repo.parent / "sandboxes"
-        self._sandbox_root.mkdir(parents=True, exist_ok=True)
+        self._sandbox_root = (self.main_repo.parent / "sandboxes").resolve()
 
     def create_worktree(self, branch_name: str) -> GitRepo:
         """Create an isolated worktree for a worker branch.
@@ -39,6 +38,7 @@ class LocalSandbox:
         The worktree checks out a new branch from HEAD so the worker
         gets an independent directory with the full repo contents.
         """
+        self._sandbox_root.mkdir(parents=True, exist_ok=True)
         safe_name = branch_name.replace("/", "-")
         worktree_path = self._sandbox_root / safe_name
 
