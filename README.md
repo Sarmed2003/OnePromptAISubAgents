@@ -201,3 +201,5 @@ Vercel will not build commits whose **author email** GitHub does not treat as yo
 4. Create a **new commit** with the corrected author (empty commit is enough), push to `main`, or run `git commit --amend --reset-author --no-edit` on the latest commit and **force-push** if you are the only one on the branch.
 
 On the GitHub commit page, your avatar should appear on the commit; if it shows as “unverified” or generic, Vercel may still cancel until the email matches a verified GitHub email.
+
+**Do not `git push` from `target-repo/`** to fix Vercel: that directory is a **separate clone** used for agent output. Amending commits there and using `git push --force-with-lease` without `git fetch` yields **stale info**, and a forced push could **wipe `main`** on GitHub. Sync it with `git fetch origin && git reset --hard origin/main`, and always push from your **primary** repo root (`OnePromptAI` / `OnePromptAISubAgents` checkout).
