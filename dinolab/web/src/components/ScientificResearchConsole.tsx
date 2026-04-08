@@ -2,6 +2,7 @@ import { type FormEvent, useState } from "react";
 import type { BoneRecord, DinosaurSpecies } from "../data/types";
 import { isResearchComingSoon } from "../config";
 import { useAgentAsk } from "../hooks/useAgentAsk";
+import mascotUrl from "../assets/research-mascot.png";
 
 interface Props {
   open: boolean;
@@ -61,7 +62,7 @@ export function ScientificResearchConsole({ open, onClose, species, bone }: Prop
           <div className="research-coming-soon">
             <img
               className="research-coming-soon__mascot"
-              src={`${import.meta.env.BASE_URL}research-mascot.png`}
+              src={mascotUrl}
               alt="Pixel-art dinosaur with a small coding companion"
             />
             <p className="research-coming-soon__msg">The research console will be up and running soon!</p>

@@ -56,7 +56,11 @@ For production, add **CloudFront** + ACM certificate in front of the bucket (sam
 
 The default `https://YOUR-PROJECT.vercel.app` hostname comes from the **Vercel project name** (Dashboard → Project → Settings → General). Rename the project to something like `dino-lab` or `dinolab-bone-lab` to get a URL containing those words, or attach a custom domain.
 
-Production builds on `*.vercel.app` show a **coming soon** research-console screen (no API calls) until you set `VITE_RESEARCH_COMING_SOON=false` and a working `VITE_API_URL`, then redeploy.
+**Root directory:** set the Vercel project **Root Directory** to `dinolab/web` so the Vite app (and bundled assets like the research mascot) build correctly.
+
+**Research console on Vercel:** production builds on `*.vercel.app` use a **coming soon** modal (mascot + message, **no** Bedrock `fetch`) unless you set `VITE_ALLOW_VERCEL_RESEARCH=true` **and** a working `VITE_API_URL`. Remove `VITE_RESEARCH_COMING_SOON=false` from Vercel env if you added it earlier; it no longer controls Vercel behavior.
+
+**Deployment canceled — “unverified commit”:** Vercel skips builds when the Git commit’s author email is not linked to a **verified** GitHub account. Fix: [verify your email on GitHub](https://docs.github.com/en/account-and-profile/setting-up-and-managing-your-personal-account-on-github/managing-email-preferences/verifying-your-email-address), set `git config user.email` to that address, then amend or make a new commit and push. If the commit was made by someone else, they must verify their email or you must merge a new commit authored with a verified identity.
 
 ## Environment (web)
 
@@ -64,7 +68,8 @@ Copy `web/.env.example` to `web/.env`:
 
 - `VITE_API_URL` — API Gateway base URL after deploy
 - `VITE_ASSET_BASE` — optional CloudFront or S3 website URL for large assets later
-- `VITE_RESEARCH_COMING_SOON` — optional `true` / `false`; overrides the automatic coming-soon behavior on `*.vercel.app`
+- `VITE_ALLOW_VERCEL_RESEARCH` — on Vercel only, `true` enables the full research form when the API is ready
+- `VITE_RESEARCH_COMING_SOON` — optional `true` on **non-Vercel** builds to mimic the Vercel “coming soon” UI
 
 ## Scientific use disclaimer
 

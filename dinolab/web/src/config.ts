@@ -1,10 +1,22 @@
 export const API_URL = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, "") ?? "";
 export const ASSET_BASE = (import.meta.env.VITE_ASSET_BASE as string | undefined)?.replace(/\/$/, "") ?? "";
 
-/** Production *.vercel.app preview URL: hide broken API until backend is wired. Override with VITE_RESEARCH_COMING_SOON. */
-export function isResearchComingSoon(): boolean {
-  if (import.meta.env.VITE_RESEARCH_COMING_SOON === "false") return false;
-  if (import.meta.env.VITE_RESEARCH_COMING_SOON === "true") return true;
+function isVercelProductionHost(): boolean {
   if (typeof window === "undefined") return false;
   return import.meta.env.PROD && /\.vercel\.app$/i.test(window.location.hostname);
+}
+
+/**
+ * On any production build served from *.vercel.app, the research console is
+ * "coming soon" (no fetch, mascot + message) so visitors never see "Failed to fetch".
+ * Opt back in to the live form only with VITE_ALLOW_VERCEL_RESEARCH=true once API works.
+ *
+ * Locally and on non-Vercel hosts: use VITE_RESEARCH_COMING_SOON=true to force the same UI.
+ */
+export function isResearchComingSoon(): boolean {
+  if (typeof window !== "undefined" && isVercelProductionHost()) {
+    return import.meta.env.VITE_ALLOW_VERCEL_RESEARCH !== "true";
+  }
+  if (import.meta.env.VITE_RESEARCH_COMING_SOON === "true") return true;
+  return false;
 }
