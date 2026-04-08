@@ -190,3 +190,14 @@ MIT
 - **dinolab/web/** — Vite + React DINOLAB UI. For Vercel, set the project **Root Directory** to `dinolab/web`.
 - **oneprompt/** — Python multi-agent orchestrator (swarm).
 - **src/**, **tests/** — TypeScript Express “DemoPulse” demo from earlier agent runs; use root `package.json` for `npm run lint`, `npm run test`, `npm run build`.
+
+### Vercel: “Deployment was canceled … unverified commit”
+
+Vercel will not build commits whose **author email** GitHub does not treat as yours (unverified or not added). See [Vercel: troubleshoot collaboration](https://vercel.com/docs/deployments/troubleshoot-project-collaboration) and [GitHub: verifying your email](https://docs.github.com/en/account-and-profile/setting-up-and-managing-your-personal-account-on-github/managing-email-preferences/verifying-your-email-address).
+
+1. On GitHub: **Settings → Emails** — add the address you use in Git (e.g. university or `noreply`) and complete **verification**.
+2. Locally: `git config user.name "Your Name"` and `git config user.email "same-as-github-verified@example.com"`.
+3. **Vercel:** [Account → Settings → Authentication](https://vercel.com/account/settings/authentication) — connect **GitHub**. Under [Email](https://vercel.com/account/settings#email), add/verify any extra addresses you commit with.
+4. Create a **new commit** with the corrected author (empty commit is enough), push to `main`, or run `git commit --amend --reset-author --no-edit` on the latest commit and **force-push** if you are the only one on the branch.
+
+On the GitHub commit page, your avatar should appear on the commit; if it shows as “unverified” or generic, Vercel may still cancel until the email matches a verified GitHub email.
