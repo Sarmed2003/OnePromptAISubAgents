@@ -6,6 +6,13 @@ function isVercelProductionHost(): boolean {
   return import.meta.env.PROD && /\.vercel\.app$/i.test(window.location.hostname);
 }
 
+/** True on public *.vercel.app build where we show the Loco “hosted preview” console (not local dev). */
+export function isVercelHostedResearchUI(): boolean {
+  return (
+    isVercelProductionHost() && import.meta.env.VITE_ALLOW_VERCEL_RESEARCH !== "true"
+  );
+}
+
 /**
  * On any production build served from *.vercel.app, the research console is
  * "coming soon" (no fetch, mascot + message) so visitors never see "Failed to fetch".

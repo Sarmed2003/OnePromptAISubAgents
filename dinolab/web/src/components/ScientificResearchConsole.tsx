@@ -1,8 +1,9 @@
 import { type FormEvent, useState } from "react";
 import type { BoneRecord, DinosaurSpecies } from "../data/types";
-import { isResearchComingSoon } from "../config";
+import { isResearchComingSoon, isVercelHostedResearchUI } from "../config";
 import { useAgentAsk } from "../hooks/useAgentAsk";
-import mascotUrl from "../assets/research-mascot.png";
+import locoMascotUrl from "../assets/loco-mascot.png";
+import researchMascotUrl from "../assets/research-mascot.png";
 
 interface Props {
   open: boolean;
@@ -16,6 +17,7 @@ export function ScientificResearchConsole({ open, onClose, species, bone }: Prop
   const [answer, setAnswer] = useState("");
   const { ask, loading, error, hasApi } = useAgentAsk();
   const comingSoon = isResearchComingSoon();
+  const vercelHostedUi = isVercelHostedResearchUI();
 
   if (!open) return null;
 
@@ -38,6 +40,71 @@ export function ScientificResearchConsole({ open, onClose, species, bone }: Prop
     });
     setAnswer(res.answer || res.error || "");
   };
+
+  if (comingSoon && vercelHostedUi) {
+    const profileLead = bone
+      ? `${bone.label} (${bone.scientificName}) — ${bone.description}`
+      : species.notes;
+
+    return (
+      <div className="research-overlay" role="dialog" aria-modal aria-labelledby="research-title">
+        <div className="research-modal research-modal--vercel-hosted hologram-panel pixel-corners">
+          <header className="research-modal__head">
+            <div>
+              <h2 id="research-title">Multi-agent research console</h2>
+              <p className="research-modal__sub">Hosted preview · research offline here</p>
+            </div>
+            <button type="button" className="btn-close pixel-corners" onClick={onClose} aria-label="Close">
+              ✕
+            </button>
+          </header>
+
+          <div className="research-vercel__top">
+            <div className="research-vercel__context pixel-corners">
+              <span className="tag">Context</span>
+              <h3 className="research-vercel__accent">Dinosaur profile</h3>
+              <p className="research-vercel__profile-name">{species.binomial}</p>
+              <p className="research-vercel__body">{profileLead}</p>
+              <h3 className="research-vercel__accent">Loco</h3>
+              <p className="research-vercel__body">
+                Our mascot Loco and their companion mark this console while the Bedrock research agent stays
+                disabled on the public site. Run DINOLAB locally with your API bridge to ask questions against
+                the full model.
+              </p>
+            </div>
+            <div className="research-vercel__mascot-wrap">
+              <img
+                className="research-vercel__loco"
+                src={locoMascotUrl}
+                alt="Loco, pixel-art dinosaur with a small rider mascot"
+              />
+            </div>
+          </div>
+
+          <div className="research-vercel__field">
+            <label htmlFor="vercel-research-placeholder" className="research-vercel__label">
+              Research question (college level, beginner-friendly)
+            </label>
+            <textarea
+              id="vercel-research-placeholder"
+              className="research-input research-input--vercel pixel-corners"
+              rows={5}
+              readOnly
+              tabIndex={-1}
+              placeholder="e.g. What does the femur shape in this species tell us about speed, body weight, and growth as it aged?"
+              value=""
+            />
+          </div>
+
+          <div className="research-vercel__actions">
+            <button type="button" className="btn-vercel-soon pixel-corners" disabled>
+              down for now, up soon!
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (comingSoon) {
     return (
@@ -62,7 +129,7 @@ export function ScientificResearchConsole({ open, onClose, species, bone }: Prop
           <div className="research-coming-soon">
             <img
               className="research-coming-soon__mascot"
-              src={mascotUrl}
+              src={researchMascotUrl}
               alt="Pixel-art dinosaur with a small coding companion"
             />
             <p className="research-coming-soon__msg">The research console will be up and running soon!</p>

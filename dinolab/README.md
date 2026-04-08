@@ -58,7 +58,7 @@ The default `https://YOUR-PROJECT.vercel.app` hostname comes from the **Vercel p
 
 **Root directory:** set the Vercel project **Root Directory** to `dinolab/web` so the Vite app (and bundled assets like the research mascot) build correctly.
 
-**Research console on Vercel:** production builds on `*.vercel.app` use a **coming soon** modal (mascot + message, **no** Bedrock `fetch`) unless you set `VITE_ALLOW_VERCEL_RESEARCH=true` **and** a working `VITE_API_URL`. Remove `VITE_RESEARCH_COMING_SOON=false` from Vercel env if you added it earlier; it no longer controls Vercel behavior.
+**Research console on Vercel:** production builds on `*.vercel.app` show a **hosted preview** layout (two-column **Context** + mascot **Loco**, read-only question field, **“down for now, up soon!”** — **no** Bedrock `fetch`) unless you set `VITE_ALLOW_VERCEL_RESEARCH=true` **and** a working `VITE_API_URL`. Local `npm run dev` keeps the full Bedrock form when `VITE_API_URL` is set.
 
 **Deployment canceled — “unverified commit”:** Vercel skips builds when the Git commit’s author email is not linked to a **verified** GitHub account. Fix: [verify your email on GitHub](https://docs.github.com/en/account-and-profile/setting-up-and-managing-your-personal-account-on-github/managing-email-preferences/verifying-your-email-address), set `git config user.email` to that address, then amend or make a new commit and push. If the commit was made by someone else, they must verify their email or you must merge a new commit authored with a verified identity.
 
