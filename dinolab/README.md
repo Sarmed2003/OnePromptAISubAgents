@@ -1,28 +1,46 @@
-# DINOLAB — Bone Detective Lab
+# DINOLAB — Retro Sci-Fi Dinosaur Museum Lab
 
-College-level **retro-futuristic** web UI for exploring dinosaur osteology, layered anatomy, and **scientific Q&A** backed by **Amazon Bedrock** (via API Gateway + Lambda). Designed as the front-end and integration surface for a multi-agent research stack; OnePromptAI can target this repo or folder in a run.
+**DINOLAB** is a college-level, retro-futuristic web application for exploring dinosaur osteology, layered anatomy, and scientific research. It combines an interactive React frontend with AWS-powered backend services to deliver an immersive paleontology learning experience.
 
-## Features
+## What is DINOLAB?
 
-- **Species selector** with metadata (clade, period, locality).
-- **Layered anatomy**: skeleton · myological schematic · soft-tissue silhouette · radiographic (X-ray) styling — toggled per view.
-- **Per-bone selection**: holographic / wireframe detail panel with osteological notes.
-- **Research console (bonus)**: submits highly technical questions; Lambda invokes Bedrock with a strict paleontology system prompt.
+DINOLAB is a hands-on digital museum lab where learners can:
+- Explore dinosaur species with rich taxonomic and geological metadata
+- Examine skeletal structures in multiple anatomical layers (skeleton, myology, soft tissue, radiographic)
+- Inspect individual bones with detailed osteological notes
+- Ask advanced paleontology questions via an AI research console backed by Amazon Bedrock
 
-## Repository layout
+Designed for educators, students, and paleontology enthusiasts, DINOLAB demonstrates modern full-stack web development, cloud architecture, and scientific AI integration.
 
-| Path | Purpose |
-|------|---------|
-| `web/` | Vite + React + TypeScript UI |
-| `infra/` | AWS SAM — HTTP API, Ask Lambda, S3 asset bucket, optional query log table |
+## Key Features
 
-## Prerequisites
+- **Species Picker** — Browse dinosaurs with clade, period, and locality information
+- **Anatomy Viewer** — Toggle between skeleton, myological schematic, soft-tissue silhouette, and radiographic (X-ray) styling
+- **Bone Details** — Select individual bones to view holographic/wireframe panels with osteological notes
+- **Research Console** — Submit technical paleontology questions; AI-powered answers via Amazon Bedrock through AWS Lambda
 
-- Node 20+
-- AWS CLI, SAM CLI
-- Bedrock model access (e.g. Claude Haiku/Sonnet) in your account/region
+## Folder Structure
 
-## Local UI (no AWS)
+```
+dinolab/
+├── web/                    # React + Vite + TypeScript UI
+│   ├── src/
+│   ├── public/
+│   ├── .env.example
+│   ├── vite.config.ts
+│   └── package.json
+├── infra/                  # AWS SAM infrastructure
+│   ├── template.yaml       # API Gateway, Lambda, S3 bucket
+│   ├── ask/                # Bedrock Lambda function
+│   └── local_ask_server.py # Local development server
+└── README.md              # This file
+```
+
+## Quick Start
+
+**For detailed setup and deployment instructions, see [RUNBOOK.md](./RUNBOOK.md).**
+
+### Local Development (UI only)
 
 ```bash
 cd dinolab/web
@@ -30,11 +48,35 @@ npm install
 npm run dev
 ```
 
-Typecheck and production build require the same install step (`npm install` or `npm ci`). If `npm run lint` reports hundreds of errors about missing `react` or `JSX.IntrinsicElements`, dependencies are not installed in `dinolab/web`.
+The app runs at `http://localhost:5173`. Without `VITE_API_URL`, the research console will show a configuration message.
 
-Without `VITE_API_URL`, the research console does not call an API and shows a **configuration error** when you try to ask a question. For local Bedrock testing, set `VITE_API_URL` to `http://127.0.0.1:8788` (see `infra/local_ask_server.py`) and run that server; for production, use the deployed `DinolabApiUrl`.
+### Local Development (with Bedrock)
 
-## Deploy backend + S3 (engineers)
+1. Start the local API server:
+   ```bash
+   cd dinolab/infra
+   python local_ask_server.py
+   ```
+
+2. In `dinolab/web/.env`, set:
+   ```
+   VITE_API_URL=http://127.0.0.1:8788
+   ```
+
+3. Run the UI:
+   ```bash
+   npm run dev
+   ```
+
+## Deployment Options
+
+### Local Development
+
+Perfect for learning and testing. Run the Vite dev server locally; optionally pair with the local Bedrock server for full research console functionality.
+
+### AWS (Production)
+
+Deploy the full stack using AWS SAM:
 
 ```bash
 cd dinolab/infra
@@ -43,36 +85,74 @@ sam deploy --guided
 ```
 
 Outputs:
+- **DinolabApiUrl** — Use this as your `VITE_API_URL` in the web app
+- **DinolabAssetBucketName** — Sync your production build here
 
-- `DinolabApiUrl` — set `VITE_API_URL` to this value (no trailing slash) and rebuild the web app.
-- `DinolabAssetBucketName` — sync static build and optionally host SPA:
+For a complete production setup, add **CloudFront** + **ACM certificate** in front of the S3 bucket.
 
-```bash
-cd ../web && npm run build
-aws s3 sync dist s3://YOUR_BUCKET_NAME --delete
-```
+### Vercel (Managed Hosting)
 
-For production, add **CloudFront** + ACM certificate in front of the bucket (same-origin or configured CORS for API on another domain).
+Deploy the React app to Vercel for easy CI/CD:
 
-### Vercel (`*.vercel.app`)
+1. Set **Root Directory** to `dinolab/web`
+2. Set environment variables: `VITE_API_URL`, `VITE_ALLOW_VERCEL_RESEARCH=true`
+3. Push to GitHub; Vercel auto-deploys
 
-The default `https://YOUR-PROJECT.vercel.app` hostname comes from the **Vercel project name** (Dashboard → Project → Settings → General). Rename the project to something like `dino-lab` or `dinolab-bone-lab` to get a URL containing those words, or attach a custom domain.
+Note: Ensure your Git commit author email is verified on GitHub to avoid deployment blocks.
 
-**Root directory:** set the Vercel project **Root Directory** to `dinolab/web` so the Vite app (and bundled assets like the research mascot) build correctly.
+## Tech Stack
 
-**Research console on Vercel:** production builds on `*.vercel.app` show a **hosted preview** layout (two-column **Context** + mascot **Loco**, read-only question field, **“down for now, up soon!”** — **no** Bedrock `fetch`) unless you set `VITE_ALLOW_VERCEL_RESEARCH=true` **and** a working `VITE_API_URL`. Local `npm run dev` keeps the full Bedrock form when `VITE_API_URL` is set.
+| Layer | Technology |
+|-------|------------|
+| **Frontend** | React 18, Vite, TypeScript |
+| **Styling** | CSS (retro sci-fi theme) |
+| **Backend** | AWS Lambda (Python) |
+| **AI** | Amazon Bedrock (Claude Haiku/Sonnet) |
+| **API** | AWS API Gateway (HTTP) |
+| **Storage** | Amazon S3 |
+| **IaC** | AWS SAM (CloudFormation) |
 
-**Deployment canceled — “unverified commit”:** Vercel skips builds when the Git commit’s author email is not linked to a **verified** GitHub account. Fix: [verify your email on GitHub](https://docs.github.com/en/account-and-profile/setting-up-and-managing-your-personal-account-on-github/managing-email-preferences/verifying-your-email-address), set `git config user.email` to that address, then amend or make a new commit and push. If the commit was made by someone else, they must verify their email or you must merge a new commit authored with a verified identity.
-
-## Environment (web)
+## Environment Variables (Web)
 
 Copy `web/.env.example` to `web/.env`:
 
-- `VITE_API_URL` — API Gateway base URL after deploy
-- `VITE_ASSET_BASE` — optional CloudFront or S3 website URL for large assets later
-- `VITE_ALLOW_VERCEL_RESEARCH` — on Vercel only, `true` enables the full research form when the API is ready
-- `VITE_RESEARCH_COMING_SOON` — optional `true` on **non-Vercel** builds to mimic the Vercel “coming soon” UI
+- `VITE_API_URL` — API Gateway base URL (no trailing slash)
+- `VITE_ASSET_BASE` — Optional CloudFront/S3 URL for large assets
+- `VITE_ALLOW_VERCEL_RESEARCH` — Set `true` on Vercel to enable research console
+- `VITE_RESEARCH_COMING_SOON` — Set `true` to show "coming soon" UI for research console
 
-## Scientific use disclaimer
+## Prerequisites
 
-Generated answers are **model outputs** for research assistance, not peer review. Always verify against primary literature and specimen data.
+- **Node.js** 20+
+- **AWS CLI** + **SAM CLI** (for backend deployment)
+- **Python** 3.9+ (for local Bedrock server)
+- **AWS Bedrock** model access (e.g., Claude Haiku/Sonnet) in your account/region
+
+## Contributing
+
+We welcome contributions! To get started:
+
+1. **Fork** the repository and create a feature branch
+2. **Local setup**: Follow the Quick Start above
+3. **Make changes** in `web/` (frontend) or `infra/` (backend)
+4. **Test locally**: `npm run dev` and `npm run lint`
+5. **Submit a pull request** with a clear description
+
+### Development Guidelines
+
+- **Frontend**: TypeScript required; run `npm run lint` before committing
+- **Backend**: Python 3.9+; ensure Lambda functions handle errors gracefully
+- **Commits**: Use clear, descriptive messages
+- **Documentation**: Update README.md or RUNBOOK.md if adding features
+
+## Scientific Disclaimer
+
+Answers generated by the research console are **model outputs** for research assistance only, not peer-reviewed findings. Always verify information against primary literature and specimen data before use in academic or professional contexts.
+
+## License
+
+See LICENSE file for details.
+
+## Support
+
+For issues, questions, or feature requests, open a GitHub issue. For detailed deployment troubleshooting, see [RUNBOOK.md](./RUNBOOK.md).
