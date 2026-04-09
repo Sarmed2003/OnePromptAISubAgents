@@ -531,6 +531,11 @@ class Dashboard:
 
         elif etype == "error":
             self._log(f"[bold red]Error:[/] {data.get('message', '?')}")
+            if data.get("hint"):
+                self._log(f"[dim]{data['hint']}[/]")
+
+        elif etype == "planner_retry":
+            self._log("[yellow]Planner returned no tasks — retrying with nudge…[/]")
 
     def _log(self, message: str) -> None:
         elapsed = time.time() - self.started_at

@@ -195,6 +195,18 @@ OnePromptAI/
 └── .env.example
 ```
 
+## Troubleshooting
+
+### “Run complete” but no agents / `none scheduled (planner returned no tasks)`
+
+The run still spends time on **clone, smart-phase selection, and planner LLM calls** — it is not instant. If the **planner** returns an empty task list, workers never start (often when the **target repo file tree** already matches the spec and the model chooses `"tasks": []`). The orchestrator **retries planning once** with a stronger nudge; if it still fails:
+
+- `python main.py --reset` then re-run, or use an **empty** target GitHub repo.
+- Run with `LOG_LEVEL=debug` to see planner logs.
+- Optional: lower `VAULT_MAX_CONTEXT_CHARS` if vault context overwhelms the model.
+
+Missing files under `prompts/*.md` (e.g. `architect.md`) log warnings; phases that need them are **skipped** until you add those prompts.
+
 ## License
 
 MIT

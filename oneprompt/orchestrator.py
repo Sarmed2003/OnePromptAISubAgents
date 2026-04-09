@@ -1203,7 +1203,29 @@ Review all cross-file references and fix any broken paths, imports, or wiring. O
         tasks = await self.planner.plan(spec, file_tree)
 
         if not tasks:
-            self._emit("error", {"message": "Planner returned no tasks"})
+            logger.warning(
+                "Planner returned 0 tasks (model may think the repo already satisfies the spec, "
+                "or JSON tasks were invalid/filtered). Retrying once with a mandatory-plan nudge."
+            )
+            self._emit("planner_retry", {"reason": "empty_task_list"})
+            nudge = (
+                "The previous plan had ZERO tasks — that is invalid for this orchestrator. "
+                "You MUST return at least 5 tasks with valid ids (task-001, task-002, …). "
+                "If the file tree already looks similar to the spec, plan tasks for: "
+                "gap fixes, tests, README/docs, CI, accessibility, performance, refactors, "
+                "and verification — never an empty tasks array."
+            )
+            tasks = await self.planner.plan(spec, file_tree, handoff_context=nudge)
+
+        if not tasks:
+            msg = (
+                "Planner returned no tasks after retry. Try: (1) python main.py --reset "
+                "then re-run, (2) a fresh empty target repo, (3) LOG_LEVEL=debug to inspect "
+                "planner output, (4) shorten vault context (VAULT_MAX_CONTEXT_CHARS) if the "
+                "model keeps refusing."
+            )
+            logger.error(msg)
+            self._emit("error", {"message": "Planner returned no tasks", "hint": msg})
             return self.metrics
 
         all_tasks: list[Task] = []

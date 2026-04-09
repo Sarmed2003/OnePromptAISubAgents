@@ -110,6 +110,12 @@ If knowledge vault context is provided below, use it to inform your decompositio
 
 ---
 
+## Never return an empty task list
+
+If the **Current File Tree** already contains files that look related to the spec, you must **still** emit tasks: tests, documentation, CI, hardening, UX polish, infra, or explicit verification tasks. Only return `"tasks": []` when the user specification is literally empty or unusable. The orchestrator cannot run workers without tasks.
+
 ## Replanning (additional context)
 
 Sometimes **Additional Context** is JSON with `completed_tasks` and `failed_tasks`. Use **failed_tasks** to propose **new** task ids that fix gaps; do **not** repeat work already in `completed_tasks`. Prefer small follow-up tasks over replanning the entire project.
+
+If Additional Context says the **previous plan had ZERO tasks**, treat that as an error: you must output a full new plan with **at least 5 tasks** and valid `task-NNN` ids.

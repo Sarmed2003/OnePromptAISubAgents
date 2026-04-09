@@ -34,12 +34,11 @@ def _print_run_summary(config: AppConfig, metrics: RunMetrics) -> None:
     click.echo(f"\n{'='*60}")
     click.echo("  OnePromptAI Run Complete")
     click.echo(f"{'='*60}")
-    eff_total = max(
-        metrics.total_tasks,
-        metrics.completed_tasks + metrics.failed_tasks,
-        1,
-    )
-    click.echo(f"  Tasks:      {metrics.completed_tasks}/{eff_total} completed")
+    scheduled = max(metrics.total_tasks, metrics.completed_tasks + metrics.failed_tasks)
+    if scheduled == 0:
+        click.echo("  Tasks:      none scheduled (planner returned no tasks — see logs)")
+    else:
+        click.echo(f"  Tasks:      {metrics.completed_tasks}/{scheduled} completed")
     click.echo(f"  Failed:     {metrics.failed_tasks}")
     click.echo(f"  Commits:    {metrics.total_commits}")
     click.echo(f"  Tokens:     {metrics.total_tokens:,}")
