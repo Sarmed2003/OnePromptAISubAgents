@@ -9,6 +9,10 @@ export interface BoneRecord {
   osteology: string;
   /** SVG group id in AnatomyViewer */
   svgGroupId: string;
+  /** Plain-language explanation of what the bone does in the animal's body */
+  plainLanguageDescription?: string;
+  /** Scientific context on how researchers study this bone */
+  researchNotes?: string;
 }
 
 export interface DinosaurSpecies {
