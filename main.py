@@ -115,7 +115,7 @@ def _exit_strict_if_failed(config: AppConfig, metrics: RunMetrics) -> None:
 
 
 @click.command()
-@click.argument("prompt")
+@click.argument("prompt", required=False, default="")
 @click.option("--spec", type=click.Path(exists=True), help="Path to SPEC.md file")
 @click.option("--dashboard", is_flag=True, help="Enable Rich terminal dashboard (inline; use another terminal for git)")
 @click.option(
@@ -128,7 +128,11 @@ def _exit_strict_if_failed(config: AppConfig, metrics: RunMetrics) -> None:
     is_flag=True,
     help="Close the dashboard after ~2s (default: keep it up until you press Enter)",
 )
-@click.option("--reset", is_flag=True, help="Reset target repo to initial commit")
+@click.option(
+    "--reset",
+    is_flag=True,
+    help="Delete local target-repo clone and sandboxes, then exit (no PROMPT needed)",
+)
 @click.option("--debug", is_flag=True, help="Enable debug logging")
 @click.option("--max-workers", type=int, default=None, help="Override max parallel workers")
 @click.option("--template", type=str, default=None, help="Template pack under templates/<name>/ (optional)")
@@ -154,6 +158,7 @@ def cli(
         python main.py "Build a REST API with user auth"
         python main.py --spec examples/example/SPEC.md "Build the project"
         python main.py --dashboard "Build a todo app"
+        python main.py --reset
     """
     from oneprompt.config import WorkerConfig, VaultConfig
 
@@ -197,13 +202,23 @@ def cli(
 
     if reset:
         _reset_target_repo(config)
+        if not spec and not (prompt or "").strip() and not dashboard:
+            click.echo("Reset complete. Run again with a PROMPT or --spec to start the orchestrator.")
+            return
 
-    build_spec = prompt
+    build_spec = (prompt or "").strip()
     if spec:
         spec_path = Path(spec)
         build_spec = spec_path.read_text(encoding="utf-8")
-        if prompt and prompt != "Build the project":
+        if (prompt or "").strip() and (prompt or "").strip() != "Build the project":
             build_spec = f"# User Prompt\n{prompt}\n\n{build_spec}"
+
+    if not (build_spec or "").strip():
+        click.echo(
+            "Error: Missing build specification. Provide PROMPT and/or --spec FILE.md",
+            err=True,
+        )
+        sys.exit(1)
 
     if dashboard:
         _run_with_dashboard(
