@@ -1,25 +1,38 @@
-# DINOLAB-style demo specification (non-technical)
+# DINOLAB spec — **same target repo** (incremental / always tasks)
 
-Use this file so you do not paste a huge string into the shell:
+Use when **`GIT_REPO_URL` is unchanged** and the repo **may already have `dinolab/`** on `main`. The root planner must **never** answer with an empty task list.
 
 ```bash
 cd /path/to/OnePromptAI
 source .venv/bin/activate
-python main.py --dashboard --spec examples/dinolab-demo/PROMPT.md "Build the project"
-```
-
-Ensure `.env` has `GIT_REPO_URL`, `GIT_TOKEN`, and your LLM provider settings. `TARGET_REPO_PATH` should point at your local clone (e.g. `./target-repo`).
-
-### Same remote repo (no GitHub change)
-
-If your **target repo already contains `dinolab/`** from earlier runs, the planner may return **zero tasks** for this file (“nothing to do”). You do **not** have to create a new GitHub repo: use **`PROMPT_SAME_REPO.md`** instead — it tells the planner to always emit **incremental** tasks (tests, CI, docs, polish, etc.).
-
-```bash
 python main.py --reset
 python main.py --dashboard --spec examples/dinolab-demo/PROMPT_SAME_REPO.md "Build the project"
 ```
 
+`--reset` wipes the **local** `./target-repo` clone only; your GitHub remote stays the same. Next run re-clones from `GIT_REPO_URL`.
+
 ---
+
+## Mandatory planning rule (for the orchestrator planner)
+
+The repository **may already include** `dinolab/web`, `dinolab/infra`, or related files. **Ignore “already done”** for planning purposes.
+
+You **MUST** return **at least 10** tasks with valid ids `task-001` … and **non-overlapping scopes**. Focus on **concrete improvements**, for example:
+
+- Add or tighten **CI** (GitHub Actions) for `dinolab/web` build/lint
+- **README / runbook** under `dinolab/` or repo root for install and dev
+- **Tests** (unit or smoke) for critical UI or API pieces where feasible
+- **Accessibility** or **responsive** fixes in `dinolab/web`
+- **Copy / content** (species metadata, bone blurbs) or **UX polish**
+- **Infra** clarity (`dinolab/infra` templates, comments, sample env)
+- **Scripts** (e.g. Gource helper) or **docs** for operators
+- **Regression check** tasks that run build and fix breakages
+
+If something truly cannot change without duplicate scope, use **docs-only** or **test-only** paths. **Never** return `"tasks": []`.
+
+---
+
+## Product specification (same as greenfield DINOLAB)
 
 I want a **website** that feels like a **futuristic museum lab** about **dinosaur bones**, for **college-age learners** who aren’t specialists.
 

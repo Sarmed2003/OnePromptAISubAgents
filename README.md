@@ -86,6 +86,10 @@ python main.py --spec examples/example/SPEC.md "Build the project"
 
 # DINOLAB-style demo (long prompt from file + dashboard)
 python main.py --dashboard --spec examples/dinolab-demo/PROMPT.md "Build the project"
+
+# Same GitHub target as before (repo may already have dinolab/) — incremental tasks
+python main.py --reset
+python main.py --dashboard --spec examples/dinolab-demo/PROMPT_SAME_REPO.md "Build the project"
 ```
 
 ## Setup Guide
