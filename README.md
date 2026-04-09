@@ -49,9 +49,9 @@ User Prompt / SPEC.md
 
 | Component | Tool | Purpose |
 |-----------|------|---------|
-| LLM | **Google Gemini API** (free tier) | Planning, code generation, reconciliation |
+| LLM | **AWS Bedrock**, **Google Gemini**, or **Ollama** (`LLM_PROVIDER` in `.env`) | Planning, code generation, reconciliation |
 | Orchestrator | **Python + asyncio** | Coordinates all agents and queues |
-| State Storage | **MongoDB** | Persists tasks, events, and run metrics |
+| State Storage | **DynamoDB** (default), **MongoDB**, or **in-memory** (`DB_BACKEND`) | Tasks, events, run metrics |
 | Version Control | **Git + GitHub** | Branch isolation, merge queue, CI/CD |
 | Sandboxing | **Local git worktrees** | Isolated workspace per worker |
 | Dashboard | **Rich** (Python) | Real-time terminal monitoring UI |
@@ -83,6 +83,9 @@ python main.py --dashboard "Build a todo app"
 
 # With a SPEC.md file
 python main.py --spec examples/example/SPEC.md "Build the project"
+
+# DINOLAB-style demo (long prompt from file + dashboard)
+python main.py --dashboard --spec examples/dinolab-demo/PROMPT.md "Build the project"
 ```
 
 ## Setup Guide
@@ -94,11 +97,17 @@ python main.py --spec examples/example/SPEC.md "Build the project"
 
 ### Required Accounts & API Keys
 
+Configure the **LLM** with `LLM_PROVIDER` in `.env` (see `.env.example`: **bedrock** and **gemini** are documented; **ollama** for local models).
+
 #### 1. Google Gemini API (FREE)
 - Go to [Google AI Studio](https://aistudio.google.com/apikey)
 - Click "Create API Key"
 - Set `GEMINI_API_KEY` in your `.env`
 - Free tier: 15 RPM, 1M tokens/day (sufficient for our scale)
+
+#### 1b. AWS Bedrock (if `LLM_PROVIDER=bedrock`)
+- IAM user or role with `bedrock:InvokeModel`; set `AWS_REGION`, `BEDROCK_MODEL_ID`, and credentials (or use `~/.aws/credentials`).
+- See comments in `.env.example` for model IDs and access notes.
 
 #### 2. GitHub Personal Access Token
 - Go to [GitHub Settings → Tokens](https://github.com/settings/tokens)
@@ -109,11 +118,10 @@ python main.py --spec examples/example/SPEC.md "Build the project"
 - Create a new empty GitHub repo for the project to be built
 - Set `GIT_REPO_URL` in your `.env`
 
-#### 4. MongoDB (Optional but recommended)
-- **Local:** Install via `brew install mongodb-community` and run `mongod`
-- **Cloud (Free):** Use [MongoDB Atlas](https://www.mongodb.com/cloud/atlas) free tier
-- Set `MONGODB_URI` in your `.env`
-- The system works without MongoDB (in-memory only), but you lose persistence
+#### 4. Persistence (pick one in `.env`)
+- **DynamoDB (default):** Set `DB_BACKEND=dynamodb` with AWS credentials / IAM; tables are created on first connect.
+- **MongoDB:** Set `DB_BACKEND=mongodb` and `MONGODB_URI` (local or [Atlas](https://www.mongodb.com/cloud/atlas)).
+- **In-memory:** Set `DB_BACKEND=memory` for a quick try (no cross-run persistence).
 
 ### Optional: AWS Sandbox
 If you have AWS Sandbox access from the hackathon, you can run workers on EC2 instances instead of locally. This is optional — local execution works fine for 3-5 workers on a MacBook Air M4.
@@ -124,26 +132,27 @@ All configuration is via `.env`. See `.env.example` for all options.
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `GEMINI_API_KEY` | Yes | — | Google Gemini API key |
+| `LLM_PROVIDER` | No | `gemini` in code; see `.env.example` | `bedrock`, `gemini`, or `ollama` |
+| `GEMINI_API_KEY` | If `LLM_PROVIDER=gemini` | — | Google AI Studio API key |
 | `GIT_REPO_URL` | Yes | — | Target repository URL |
 | `GIT_TOKEN` | Yes | — | GitHub PAT with push access |
-| `MAX_WORKERS` | No | `3` | Parallel workers (3-5 for laptop) |
-| `MONGODB_URI` | No | `mongodb://localhost:27017` | MongoDB connection |
-| `GEMINI_MODEL` | No | `gemini-2.0-flash` | Model to use |
+| `MAX_WORKERS` | No | `8` in code | Parallel workers (3–5 typical on a laptop) |
+| `DB_BACKEND` | No | `dynamodb` | `dynamodb`, `mongodb`, or `memory` |
+| `MONGODB_URI` | If `DB_BACKEND=mongodb` | — | MongoDB connection string |
 
 ## How It Compares to Longshot
 
 | Feature | Longshot | OnePromptAI |
 |---------|----------|-------------|
-| LLMs | GPT 5.2 + GLM 5.0 | Gemini 2.0 Flash (free) |
+| LLMs | GPT 5.2 + GLM 5.0 | Bedrock / Gemini / Ollama (your `.env`) |
 | Sandboxing | Modal (serverless GPU) | Local git worktrees |
-| Max workers | 50+ | 3-5 |
+| Max workers | 50+ | 3–8 typical locally |
 | Language | TypeScript + Python | Pure Python |
-| State | Git-only | MongoDB + Git |
+| State | Git-only | DynamoDB (default), MongoDB, or memory + Git |
 | Dashboard | Rich terminal | Rich terminal |
 | MCP Server | Poke | Not needed |
-| Cost per run | ~$0.43+ (Modal credits) | Free (Gemini free tier) |
-| Scale | 100k+ LOC, 5k+ commits | Smaller projects, 50-200 commits |
+| Cost per run | Varies (e.g. Modal) | Varies (Ollama: local; Gemini free tier; Bedrock: AWS) |
+| Scale | 100k+ LOC, 5k+ commits | Smaller projects, 50–200 commits |
 
 ## Project Structure
 
@@ -162,6 +171,7 @@ OnePromptAI/
 │   ├── task_queue.py       # Priority task queue
 │   ├── merge_queue.py      # Git merge queue
 │   ├── git_utils.py        # Git operations
+│   ├── vault.py            # Optional knowledge vault + run summaries
 │   ├── sandbox.py          # Local worktree isolation
 │   └── db.py               # MongoDB persistence
 ├── prompts/

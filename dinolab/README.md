@@ -30,6 +30,8 @@ npm install
 npm run dev
 ```
 
+Typecheck and production build require the same install step (`npm install` or `npm ci`). If `npm run lint` reports hundreds of errors about missing `react` or `JSX.IntrinsicElements`, dependencies are not installed in `dinolab/web`.
+
 Without `VITE_API_URL`, the research console does not call an API and shows a **configuration error** when you try to ask a question. For local Bedrock testing, set `VITE_API_URL` to `http://127.0.0.1:8788` (see `infra/local_ask_server.py`) and run that server; for production, use the deployed `DinolabApiUrl`.
 
 ## Deploy backend + S3 (engineers)
