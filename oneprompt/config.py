@@ -153,6 +153,10 @@ class OrchestratorConfig:
     # partial worker handoffs retry until complete or hard fail. See STRICT_SDLC in .env.
     strict_sdlc: bool = True
     smart_phase_selection: bool = True
+    # 0 = unlimited. Large monorepos can stall the planner for many minutes without this.
+    max_file_tree_lines: int = 600
+    # Parallel subplanner LLM calls (speeds up pre-worker phase vs strict sequential).
+    subplanner_max_parallel: int = 4
 
     @classmethod
     def from_env(cls) -> OrchestratorConfig:
@@ -176,6 +180,8 @@ class OrchestratorConfig:
             devops_enabled=_bool("DEVOPS_ENABLED"),
             strict_sdlc=strict,
             smart_phase_selection=smart,
+            max_file_tree_lines=int(os.getenv("MAX_FILE_TREE_LINES", "600")),
+            subplanner_max_parallel=max(1, int(os.getenv("SUBPLANNER_MAX_PARALLEL", "4"))),
         )
 
 

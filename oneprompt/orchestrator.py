@@ -81,6 +81,10 @@ class Orchestrator:
         self._architect_decisions: list[str] = []
         self._run_errors: list[str] = []
 
+    def _file_tree_for_llm(self) -> str:
+        lim = self.config.orchestrator.max_file_tree_lines
+        return self.git.get_file_tree(lim if lim > 0 else None)
+
     # ------------------------------------------------------------------
     # Smart phase selection
     # ------------------------------------------------------------------
@@ -290,7 +294,7 @@ class Orchestrator:
             return
 
         self.git.checkout_main()
-        file_tree = self.git.get_file_tree()
+        file_tree = self._file_tree_for_llm()
         existing_files: dict[str, str] = {}
         for line in file_tree.split("\n"):
             fp = line.strip()
@@ -541,7 +545,7 @@ Analyze these tasks and produce architectural guidance so all workers produce co
 
         self.git.checkout_main()
         recent_commits = self.git.get_recent_commits(30)
-        file_tree = self.git.get_file_tree()
+        file_tree = self._file_tree_for_llm()
 
         task_summaries: list[dict[str, str]] = []
         for task in completed_tasks[:10]:
@@ -1188,10 +1192,17 @@ Review all cross-file references and fix any broken paths, imports, or wiring. O
             self._emit("error", {"message": "Failed to clone/pull target repo"})
             raise RuntimeError("Cannot access target repository")
 
-        file_tree = self.git.get_file_tree()
-        self._emit("repo_ready", {"files": file_tree[:500]})
+        file_tree = self._file_tree_for_llm()
+        self._emit("repo_ready", {"files": file_tree[:500], "tree_chars": len(file_tree)})
 
         # ── Smart phase selection ─────────────────────────────────────
+        self._emit(
+            "llm_busy",
+            {
+                "phase": "smart_phase_selection",
+                "detail": "Choosing SDLC phases (LLM) — workers start after planning finishes",
+            },
+        )
         self._phase_overrides = await self._select_phases(spec)
         active = [k for k, v in self._phase_overrides.items() if v]
         skipped = [k for k, v in self._phase_overrides.items() if not v]
@@ -1200,6 +1211,13 @@ Review all cross-file references and fix any broken paths, imports, or wiring. O
 
         # ── Phase 1: Planning ─────────────────────────────────────────
         self._emit("phase", {"name": "planning"})
+        self._emit(
+            "llm_busy",
+            {
+                "phase": "planner",
+                "detail": "Decomposing spec into tasks — no agents until this returns",
+            },
+        )
         tasks = await self.planner.plan(spec, file_tree)
 
         if not tasks:
@@ -1228,26 +1246,53 @@ Review all cross-file references and fix any broken paths, imports, or wiring. O
             self._emit("error", {"message": "Planner returned no tasks", "hint": msg})
             return self.metrics
 
-        all_tasks: list[Task] = []
-        for task in tasks:
+        self._emit("planner_done", {"task_count": len(tasks), "ids": [t.id for t in tasks][:20]})
+
+        # Subplanner: run decompositions in parallel (was strictly sequential — very slow).
+        para = max(1, self.config.orchestrator.subplanner_max_parallel)
+        sub_sem = asyncio.Semaphore(para)
+
+        async def _expand_one(task: Task) -> list[Task]:
             should_decompose = (
                 len(task.scope) > 1
                 or task.priority <= 3
                 or len(task.description) > 200
             )
-            if should_decompose:
-                file_contents = self.git.read_files_in_scope(task.scope)
-                subtasks = await self.subplanner.decompose(task, file_tree, file_contents)
-                if subtasks:
-                    all_tasks.extend(subtasks)
-                    self._emit("subplan", {
-                        "parent": task.id,
-                        "subtasks": [t.id for t in subtasks],
-                    })
-                    continue
-            all_tasks.append(task)
+            if not should_decompose:
+                return [task]
+            file_contents = await asyncio.to_thread(
+                self.git.read_files_in_scope, task.scope
+            )
+            async with sub_sem:
+                self._emit(
+                    "llm_busy",
+                    {
+                        "phase": "subplanner",
+                        "detail": f"Decomposing {task.id} (parallel up to {para})",
+                    },
+                )
+                subtasks = await self.subplanner.decompose(
+                    task, file_tree, file_contents
+                )
+            if subtasks:
+                self._emit("subplan", {
+                    "parent": task.id,
+                    "subtasks": [t.id for t in subtasks],
+                })
+                return subtasks
+            return [task]
+
+        expanded = await asyncio.gather(*[_expand_one(t) for t in tasks])
+        all_tasks: list[Task] = [t for group in expanded for t in group]
 
         # ── Phase 1b: Architect ───────────────────────────────────────
+        self._emit(
+            "llm_busy",
+            {
+                "phase": "architect",
+                "detail": "Enriching tasks with architecture context (if enabled)",
+            },
+        )
         all_tasks = await self._run_architect_phase(all_tasks, file_tree)
 
         self.task_queue.add_tasks(all_tasks)
@@ -1412,7 +1457,7 @@ Review all cross-file references and fix any broken paths, imports, or wiring. O
 
                     replan_ctx = self.task_queue.get_replan_context()
                     if replan_ctx:
-                        file_tree = self.git.get_file_tree()
+                        file_tree = self._file_tree_for_llm()
                         new_tasks = await self.planner.plan(spec, file_tree, replan_ctx)
                         if new_tasks:
                             self.task_queue.add_tasks(new_tasks)
@@ -1437,7 +1482,7 @@ Review all cross-file references and fix any broken paths, imports, or wiring. O
             await self._run_failure_recovery(spec, run_worker)
 
         # ── Phase 3b: Integration (fix cross-file references) ─────────
-        file_tree = self.git.get_file_tree()
+        file_tree = self._file_tree_for_llm()
         await self._run_integration_phase(file_tree)
 
         completed_task_list = [
@@ -1460,7 +1505,7 @@ Review all cross-file references and fix any broken paths, imports, or wiring. O
             await self._merge_and_rework(run_worker)
 
         # ── Phase 5: QA Testing (on merged main) ─────────────────────
-        file_tree = self.git.get_file_tree()
+        file_tree = self._file_tree_for_llm()
         await self._run_qa_phase(file_tree)
 
         # ── Phase 5b: Sandbox Execution (run build + tests) ──────────
@@ -1474,7 +1519,7 @@ Review all cross-file references and fix any broken paths, imports, or wiring. O
             await self._merge_and_rework(run_worker)
 
         # ── Phase 6: Security Audit ───────────────────────────────────
-        file_tree = self.git.get_file_tree()
+        file_tree = self._file_tree_for_llm()
         security_fix_tasks = await self._run_security_phase(file_tree)
 
         if security_fix_tasks:
@@ -1506,11 +1551,11 @@ Review all cross-file references and fix any broken paths, imports, or wiring. O
                 await self._merge_and_rework(run_worker)
 
         # ── Phase 8: Bundler (single-file projects) ──────────────────
-        file_tree = self.git.get_file_tree()
+        file_tree = self._file_tree_for_llm()
         await self._run_bundler_phase(spec, file_tree)
 
         # ── Phase 9: DevOps ──────────────────────────────────────────
-        file_tree = self.git.get_file_tree()
+        file_tree = self._file_tree_for_llm()
         await self._run_devops_phase(file_tree)
 
         # ── Final push + cleanup ─────────────────────────────────────

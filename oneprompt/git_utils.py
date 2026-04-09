@@ -169,8 +169,11 @@ class GitRepo:
             "error": push_r.stderr.strip() if push_r.returncode != 0 else "",
         }
 
-    def get_file_tree(self) -> str:
-        """Return a text representation of the repo file tree."""
+    def get_file_tree(self, max_lines: int | None = None) -> str:
+        """Return a text representation of the repo file tree.
+
+        If *max_lines* > 0, truncate with a footer so planner prompts stay small on monorepos.
+        """
         r = self._run("ls-tree", "-r", "--name-only", "HEAD")
         if r.returncode != 0:
             try:
@@ -178,10 +181,23 @@ class GitRepo:
                 for p in self.repo_path.rglob("*"):
                     if p.is_file() and ".git" not in p.parts:
                         files.append(str(p.relative_to(self.repo_path)))
-                return "\n".join(sorted(files))
+                raw = "\n".join(sorted(files))
             except Exception:
                 return "(empty repository)"
-        return r.stdout.strip()
+        else:
+            raw = r.stdout.strip()
+
+        if not max_lines or max_lines <= 0:
+            return raw
+        lines = raw.splitlines()
+        if len(lines) <= max_lines:
+            return raw
+        kept = lines[:max_lines]
+        omitted = len(lines) - max_lines
+        return (
+            "\n".join(kept)
+            + f"\n\n... ({omitted} more paths omitted — increase MAX_FILE_TREE_LINES or use a smaller target repo)"
+        )
 
     def get_recent_commits(self, count: int = 20) -> str:
         r = self._run("log", f"--oneline", f"-{count}")

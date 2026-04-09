@@ -197,6 +197,14 @@ OnePromptAI/
 
 ## Troubleshooting
 
+### Dashboard shows **0 agents** for many minutes (FEATURES `0/1`, timer ticking)
+
+Workers only start **after** (1) smart phase selection, (2) **planner** LLM, (3) **subplanner** calls for large tasks, (4) optional **architect** LLM. That can take **several minutes** on a big spec or a **large target-repo file tree**. Check the **Activity** log for `LLM · planner` / `Planner returned N top-level task(s)`.
+
+- Set **`MAX_FILE_TREE_LINES=400`** (or lower) in `.env` if the target repo is a monorepo.
+- Use an **empty or small** target repo for demos, or `python main.py --reset` before re-running.
+- Increase **`SUBPLANNER_MAX_PARALLEL`** (e.g. `6`) to speed the pre-worker phase.
+
 ### “Run complete” but no agents / `none scheduled (planner returned no tasks)`
 
 The run still spends time on **clone, smart-phase selection, and planner LLM calls** — it is not instant. If the **planner** returns an empty task list, workers never start (often when the **target repo file tree** already matches the spec and the model chooses `"tasks": []`). The orchestrator **retries planning once** with a stronger nudge; if it still fails:

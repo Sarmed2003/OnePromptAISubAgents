@@ -117,6 +117,23 @@ class Dashboard:
             self.phase = data.get("name", "unknown")
             self._log(f"[cyan]Phase: {self.phase}[/]")
 
+        elif etype == "llm_busy":
+            phase = data.get("phase", "?")
+            detail = (data.get("detail") or "").strip()
+            if detail:
+                self._log(f"[dim]LLM · {phase}[/] — {detail}")
+            else:
+                self._log(f"[dim]LLM · {phase}[/] (still working — workers start after planning)")
+
+        elif etype == "planner_done":
+            n = data.get("task_count", 0)
+            self._log(f"[bold green]Planner[/] returned [bold]{n}[/] top-level task(s); subplanner/architect next")
+
+        elif etype == "repo_ready":
+            tc = data.get("tree_chars")
+            if tc is not None:
+                self._log(f"[dim]Repo file tree for LLM: {tc} chars (truncation via MAX_FILE_TREE_LINES)[/]")
+
         elif etype == "phases_selected":
             active = data.get("active", [])
             skipped = data.get("skipped", [])
@@ -780,11 +797,11 @@ class Dashboard:
         done = self.completed_tasks
 
         bar_width = 50
-        filled_green = min(bar_width, int(done / total * bar_width))
+        filled_green = min(bar_width, int(done / total * bar_width)) if total else 0
         filled_yellow = min(
             bar_width - filled_green,
             int(self.in_progress_tasks / total * bar_width),
-        )
+        ) if total else 0
         remaining = bar_width - filled_green - filled_yellow
 
         bar = Text()
@@ -794,6 +811,8 @@ class Dashboard:
         bar.append("░" * max(0, remaining), style="dim")
         bar.append(f"  {done}", style="bold white")
         bar.append(f"/{total}", style="dim white")
+        if self.total_tasks == 0 and self.phase not in ("complete", "unknown"):
+            bar.append("  (pre-worker: planning/LLM)", style="dim italic")
 
         return Panel(bar, border_style="green", box=box.ROUNDED)
 
