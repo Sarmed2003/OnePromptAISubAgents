@@ -70,7 +70,11 @@ With that, users load the SPA from CloudFront; questions hit API Gateway → Lam
 
 The default `https://YOUR-PROJECT.vercel.app` hostname comes from the **Vercel project name** (Dashboard → Project → Settings → General). Rename the project to something like `dino-lab` or `dinolab-bone-lab` to get a URL containing those words, or attach a custom domain.
 
-**Root directory:** set the Vercel project **Root Directory** to `dinolab/web` so the Vite app (and bundled assets like the research mascot) build correctly.
+**Root directory (recommended):** set the Vercel project **Root Directory** to `dinolab/web`. That folder contains **`vercel.json`** (`framework: vite`, `npm ci` + `npm run build`, output **`dist`**). **Node 20+** is declared in `package.json` `engines`.
+
+**Root directory = repo root:** if you import the whole monorepo with root **`.`**, use the **`vercel.json` at the repository root** (it `cd`s into `dinolab/web` for install/build and sets `outputDirectory` to `dinolab/web/dist`). Prefer **`dinolab/web`** as the project root when possible so only one config applies.
+
+**Environment variables (Production / Preview):** set at least **`VITE_API_URL`** to your deployed Ask API URL (no trailing slash) if you want the research console to call Bedrock. For the full form on `*.vercel.app`, also set **`VITE_ALLOW_VERCEL_RESEARCH=true`** and ensure the Lambda **CORS** allows your Vercel origin.
 
 **Research console on Vercel:** production builds on `*.vercel.app` show a **hosted preview** layout (two-column **Context** + mascot **Loco**, read-only question field, **“down for now, up soon!”** — **no** Bedrock `fetch`) unless you set `VITE_ALLOW_VERCEL_RESEARCH=true` **and** a working `VITE_API_URL`. Local `npm run dev` keeps the full Bedrock form when `VITE_API_URL` is set.
 

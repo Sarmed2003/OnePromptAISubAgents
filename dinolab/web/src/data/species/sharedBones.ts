@@ -21,7 +21,17 @@ export function getCoarseBoneCopy(
   return { description: b.description, osteology: b.osteology };
 }
 
-type BoneOverride = Partial<Pick<BoneRecord, "description" | "osteology" | "scientificName" | "label">>;
+type BoneOverride = Partial<
+  Pick<
+    BoneRecord,
+    | "description"
+    | "osteology"
+    | "scientificName"
+    | "label"
+    | "plainLanguageDescription"
+    | "researchNotes"
+  >
+>;
 
 const BASE_BONES: Record<BoneId, BoneRecord> = {
   skull: {

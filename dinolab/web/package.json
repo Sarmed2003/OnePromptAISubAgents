@@ -3,13 +3,18 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "prelint": "node scripts/check-node-modules.cjs",
     "prebuild": "node scripts/check-node-modules.cjs",
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "type-check": "tsc --noEmit",
+    "test": "node -e \"console.log('No unit tests yet'); process.exit(0)\""
   },
   "dependencies": {
     "@react-three/drei": "^9.122.0",

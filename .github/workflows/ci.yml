@@ -24,11 +24,8 @@ jobs:
       - name: Install dependencies
         run: npm ci
       
-      - name: Lint (ESLint)
+      - name: Typecheck (tsc)
         run: npm run lint
-      
-      - name: Type check (TypeScript)
-        run: npm run type-check
       
       - name: Build (Vite)
         run: npm run build
@@ -42,7 +39,7 @@ jobs:
             find dist -type f | wc -l | xargs echo "Total files:"
           fi
       
-      - name: Unit tests (Vitest/Jest)
+      - name: Placeholder test script
         run: npm run test
       
       - name: Build passed
