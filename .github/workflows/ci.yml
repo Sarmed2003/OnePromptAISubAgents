@@ -5,6 +5,7 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  workflow_dispatch:
 
 jobs:
   dinolab-web:
@@ -14,34 +15,37 @@ jobs:
       run:
         working-directory: dinolab/web
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node 20
+        uses: actions/setup-node@v4
         with:
           node-version: "20"
           cache: "npm"
           cache-dependency-path: dinolab/web/package-lock.json
-      
+
       - name: Install dependencies
         run: npm ci
-      
-      - name: Typecheck (tsc)
+
+      - name: Lint and typecheck
         run: npm run lint
-      
-      - name: Build (Vite)
+
+      - name: Build with Vite
         run: npm run build
-      
-      - name: Measure build artifacts
-        if: always()
-        run: |
-          echo "=== Build Artifacts ==="
-          if [ -d "dist" ]; then
-            du -sh dist
-            find dist -type f | wc -l | xargs echo "Total files:"
-          fi
-      
-      - name: Placeholder test script
+
+      - name: Run unit tests
         run: npm run test
-      
-      - name: Build passed
+
+      - name: Run smoke tests
+        run: bash ../../dinolab/web/smoke-test.sh
+
+      - name: Report build success
         if: success()
-        run: echo "Build passed. Ready for manual deployment review."
+        run: echo "✓ CI pipeline passed: lint, build, unit tests, and smoke tests all successful."
+
+      - name: Report build failure
+        if: failure()
+        run: |
+          echo "✗ CI pipeline failed. Review logs above for details."
+          exit 1
