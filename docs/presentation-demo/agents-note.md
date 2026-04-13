@@ -1,0 +1,3 @@
+# Agent Handoff Note
+
+Hey team! Just wrapped up the initial demo setup—got the presentation scaffolding in place with a solid README and this handoff doc so everyone knows what's going on. The foundation is clean and ready for content, so the next agent should feel free to layer in the actual demo workflows, examples, or interactive elements without worrying about the directory structure. We kept things lightweight and narrative-driven on purpose, so there's plenty of room to expand with actual agent demonstrations and swarm coordination patterns. Looking forward to seeing what the next crew builds on top of this!
