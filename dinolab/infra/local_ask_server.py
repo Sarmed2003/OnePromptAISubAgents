@@ -1,7 +1,7 @@
 """Local DINOLAB research API server (Bedrock-backed).
 
 Run:
-  BEDROCK_MODEL_ID=<model-or-inference-profile> python local_ask_server.py --port 8787
+  BEDROCK_MODEL_ID=<model-or-inference-profile> python local_ask_server.py --port 8080
 """
 
 from __future__ import annotations
@@ -10,6 +10,8 @@ import argparse
 import json
 import logging
 import os
+import signal
+import sys
 import urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -92,7 +94,7 @@ class Handler(BaseHTTPRequestHandler):
 code,pre{{background:#f4f4f5;padding:0.15em 0.35em;border-radius:4px}}pre{{padding:0.75em;overflow:auto}}</style></head>
 <body>
 <h1>DINOLAB local API is running</h1>
-<p>This address (<strong>port {port}</strong>) is the <em>research backend</em> only. There is no web app here — a <code>501</code> on GET used to mean “wrong place”; you are in the right place now.</p>
+<p>This address (<strong>port {port}</strong>) is the <em>research backend</em> only. There is no web app here — a <code>501</code> on GET used to mean "wrong place"; you are in the right place now.</p>
 <h2>To use the research console</h2>
 <ol>
 <li>Keep this terminal process running.</li>
@@ -160,11 +162,30 @@ npm run dev</pre></li>
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--host", default="127.0.0.1")
-    parser.add_argument("--port", type=int, default=8787)
+    parser.add_argument("--port", type=int, default=8080)
     args = parser.parse_args()
+    
     server = ThreadingHTTPServer((args.host, args.port), Handler)
+    
+    # Print startup message with test URL
+    test_url = f"http://{args.host}:{args.port}/lab/ask"
     LOG.info("DINOLAB local API listening on http://%s:%d", args.host, args.port)
-    server.serve_forever()
+    LOG.info("Test URL: %s", test_url)
+    LOG.info("Example request: curl -X POST %s -H 'Content-Type: application/json' -d '{\"question\":\"What is a dinosaur?\"}'" , test_url)
+    
+    # Setup clean shutdown
+    def signal_handler(signum: int, frame: Any) -> None:
+        LOG.info("Shutdown signal received, stopping server...")
+        server.shutdown()
+        sys.exit(0)
+    
+    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
+    
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        LOG.info("Server stopped")
 
 
 if __name__ == "__main__":
