@@ -5,9 +5,6 @@ import { useAgentAsk } from "../hooks/useAgentAsk";
 import { PROJECT } from "../project";
 import researchMascotUrl from "../assets/research-mascot.png";
 
-/** Served from `public/mascots/` so production (Vercel) always gets a stable URL, not only a bundled import. */
-const DINOLAB_HOSTED_LOGO = `${import.meta.env.BASE_URL}mascots/dinolab-mascot-logo.png`;
-
 interface Props {
   open: boolean;
   onClose: () => void;
@@ -68,51 +65,20 @@ export function ScientificResearchConsole({ open, onClose, species, bone }: Prop
             </button>
           </header>
 
-          <div className="research-vercel__top">
+          <div className="research-vercel__body-block">
             <div className="research-vercel__context pixel-corners">
               <span className="tag">Context</span>
               <h3 className="research-vercel__accent">Dinosaur profile</h3>
               <p className="research-vercel__profile-name">{species.binomial}</p>
               <p className="research-vercel__body">{profileLead}</p>
-              <h3 className="research-vercel__accent">Loco · {PROJECT.subtitle}</h3>
-              <p className="research-vercel__body">
-                Loco rides along while this hosted build ({hostedHost}) keeps Amazon Bedrock research
-                turned off for visitors. The live stack ships from{" "}
-                <strong>{PROJECT.githubRepo}</strong> alongside the {PROJECT.orchestrator} swarm. Clone the
-                repo, run <code className="research-vercel__code">dinolab/web</code> with{" "}
-                <code className="research-vercel__code">VITE_API_URL</code> pointed at your ask endpoint (e.g.{" "}
-                <code className="research-vercel__code">local_ask_server.py</code> on port 8787) to use the
-                full research console with your API keys—never on this public page.
+              <p className="research-vercel__note">
+                Amazon Bedrock Q&amp;A is disabled on this public host ({hostedHost}). Clone{" "}
+                <strong>{PROJECT.githubRepo}</strong>, run <code className="research-vercel__code">dinolab/web</code>{" "}
+                with <code className="research-vercel__code">VITE_API_URL</code> pointing at your ask API (e.g.{" "}
+                <code className="research-vercel__code">dinolab/infra/local_ask_server.py</code>) for the full
+                console.
               </p>
             </div>
-            <div className="research-vercel__mascot-wrap research-vercel__mascot-wrap--logo">
-              <img
-                className="research-vercel__logo"
-                src={DINOLAB_HOSTED_LOGO}
-                alt="DINOLAB mascot — pixel-art dinosaur and rider logo"
-              />
-            </div>
-          </div>
-
-          <div className="research-vercel__field">
-            <label htmlFor="vercel-research-placeholder" className="research-vercel__label">
-              Research question (college level, beginner-friendly)
-            </label>
-            <textarea
-              id="vercel-research-placeholder"
-              className="research-input research-input--vercel pixel-corners"
-              rows={5}
-              readOnly
-              tabIndex={-1}
-              placeholder="e.g. What does the femur shape in this species tell us about speed, body weight, and growth as it aged?"
-              value=""
-            />
-          </div>
-
-          <div className="research-vercel__actions">
-            <button type="button" className="btn-vercel-soon pixel-corners" disabled>
-              down for now, up soon!
-            </button>
           </div>
         </div>
       </div>

@@ -830,29 +830,14 @@ body {
   text-align: center;
 }
 
-/* Vercel-only hosted preview (Loco + two-column context) */
+/* Vercel-only hosted preview (context + short note; no image / no fake form) */
 .research-modal--vercel-hosted {
-  width: min(920px, 100%);
+  width: min(560px, 100%);
   text-align: left;
 }
 
-.research-vercel__top {
-  display: grid;
-  grid-template-columns: 1fr min(220px, 38%);
-  gap: 1rem 1.25rem;
+.research-vercel__body-block {
   margin-top: 1rem;
-  align-items: start;
-}
-
-@media (max-width: 600px) {
-  .research-vercel__top {
-    grid-template-columns: 1fr;
-  }
-
-  .research-vercel__mascot-wrap {
-    order: -1;
-    justify-self: center;
-  }
 }
 
 .research-vercel__context {
@@ -860,7 +845,7 @@ body {
   background: rgba(0, 0, 0, 0.35);
   border: 1px solid var(--magenta);
   font-size: 0.82rem;
-  max-height: 280px;
+  max-height: min(52vh, 360px);
   overflow: auto;
 }
 
@@ -892,6 +877,15 @@ body {
   line-height: 1.5;
 }
 
+.research-vercel__note {
+  margin: 1rem 0 0;
+  padding-top: 0.75rem;
+  border-top: 1px solid rgba(255, 140, 43, 0.25);
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  line-height: 1.55;
+}
+
 .research-vercel__code {
   font-family: var(--font-mono);
   font-size: 0.78em;
@@ -899,68 +893,6 @@ body {
   padding: 0 0.15em;
   background: rgba(0, 0, 0, 0.35);
   border-radius: 2px;
-}
-
-.research-vercel__mascot-wrap {
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  padding: 0.35rem;
-}
-
-/* Hosted preview: standalone logo art (light canvas) in the right column */
-.research-vercel__mascot-wrap--logo {
-  align-items: center;
-  padding: 0.65rem 0.5rem;
-  background: rgba(255, 255, 255, 0.94);
-  border: 1px solid rgba(255, 140, 43, 0.45);
-  border-radius: 6px;
-  box-shadow: 0 0 24px rgba(255, 140, 43, 0.12), inset 0 0 0 1px rgba(0, 0, 0, 0.06);
-}
-
-.research-vercel__logo {
-  width: min(168px, 100%);
-  height: auto;
-  display: block;
-  image-rendering: pixelated;
-  image-rendering: crisp-edges;
-  object-fit: contain;
-}
-
-.research-vercel__field {
-  margin-top: 1rem;
-}
-
-.research-vercel__label {
-  display: block;
-  font-family: var(--font-mono);
-  font-size: 0.68rem;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  margin-bottom: 0.4rem;
-  color: var(--cyan);
-}
-
-.research-input--vercel {
-  opacity: 0.92;
-  cursor: default;
-}
-
-.research-vercel__actions {
-  margin-top: 0.75rem;
-}
-
-.btn-vercel-soon {
-  padding: 0.6rem 1.2rem;
-  cursor: not-allowed;
-  font-family: var(--font-mono);
-  font-size: 0.72rem;
-  text-transform: lowercase;
-  letter-spacing: 0.04em;
-  background: var(--cyan);
-  color: var(--void);
-  border: none;
-  opacity: 0.92;
 }
 
 .research-coming-soon {
