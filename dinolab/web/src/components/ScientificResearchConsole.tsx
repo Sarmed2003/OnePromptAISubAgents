@@ -12,6 +12,19 @@ interface Props {
   bone: BoneRecord | null;
 }
 
+/** One paragraph for public Vercel modal: species overview plus bone detail when selected (no extra column / second disclaimer block). */
+function vercelHostedContextBody(species: DinosaurSpecies, bone: BoneRecord | null): string {
+  if (bone == null) return species.notes;
+  const chunks = [
+    species.notes,
+    `Selected element: ${bone.label} (${bone.scientificName}).`,
+    bone.plainLanguageDescription ?? bone.description,
+    bone.osteology,
+    bone.researchNotes,
+  ];
+  return chunks.filter((s) => typeof s === "string" && s.trim()).join(" ");
+}
+
 export function ScientificResearchConsole({ open, onClose, species, bone }: Props) {
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState("");
@@ -44,9 +57,7 @@ export function ScientificResearchConsole({ open, onClose, species, bone }: Prop
   if (comingSoon && vercelHostedUi) {
     const hostedHost =
       typeof window !== "undefined" ? window.location.hostname : PROJECT.vercelHost;
-    const profileLead = bone
-      ? `${bone.label} (${bone.scientificName}) — ${bone.description}`
-      : species.notes;
+    const contextBody = vercelHostedContextBody(species, bone);
 
     return (
       <div className="research-overlay" role="dialog" aria-modal aria-labelledby="research-title">
@@ -70,15 +81,29 @@ export function ScientificResearchConsole({ open, onClose, species, bone }: Prop
               <span className="tag">Context</span>
               <h3 className="research-vercel__accent">Dinosaur profile</h3>
               <p className="research-vercel__profile-name">{species.binomial}</p>
-              <p className="research-vercel__body">{profileLead}</p>
-              <p className="research-vercel__note">
-                Amazon Bedrock Q&amp;A is disabled on this public host ({hostedHost}). Clone{" "}
-                <strong>{PROJECT.githubRepo}</strong>, run <code className="research-vercel__code">dinolab/web</code>{" "}
-                with <code className="research-vercel__code">VITE_API_URL</code> pointing at your ask API (e.g.{" "}
-                <code className="research-vercel__code">dinolab/infra/local_ask_server.py</code>) for the full
-                console.
-              </p>
+              <p className="research-vercel__body">{contextBody}</p>
             </div>
+            <form
+              className="research-form research-form--vercel-hosted"
+              onSubmit={(e) => e.preventDefault()}
+              aria-label="Research question (disabled on public host)"
+            >
+              <label htmlFor="q-vercel-hosted">Research question (college level, beginner-friendly)</label>
+              <textarea
+                id="q-vercel-hosted"
+                className="research-input pixel-corners research-input--readonly"
+                rows={5}
+                readOnly
+                tabIndex={0}
+                placeholder="e.g. What does the femur shape in this species tell us about speed, body weight, and growth as it aged?"
+                aria-label="Research question; submissions are disabled on this public host"
+              />
+              <div className="research-actions">
+                <button type="button" className="btn-submit btn-submit--vercel-soon pixel-corners" disabled>
+                  down for now, up soon!
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       </div>

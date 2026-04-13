@@ -830,14 +830,18 @@ body {
   text-align: center;
 }
 
-/* Vercel-only hosted preview (context + short note; no image / no fake form) */
+/* Vercel-only hosted: full-width context + read-only question field (no side image / no second context column) */
 .research-modal--vercel-hosted {
-  width: min(560px, 100%);
+  width: min(720px, 100%);
   text-align: left;
 }
 
 .research-vercel__body-block {
   margin-top: 1rem;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
 }
 
 .research-vercel__context {
@@ -845,8 +849,25 @@ body {
   background: rgba(0, 0, 0, 0.35);
   border: 1px solid var(--magenta);
   font-size: 0.82rem;
-  max-height: min(52vh, 360px);
+  max-height: min(58vh, 480px);
   overflow: auto;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.research-form--vercel-hosted {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.research-input--readonly {
+  cursor: default;
+  opacity: 0.92;
+}
+
+.btn-submit--vercel-soon:disabled {
+  opacity: 1;
+  cursor: not-allowed;
 }
 
 .research-vercel__accent {
@@ -875,24 +896,6 @@ body {
   margin: 0;
   color: var(--text-dim);
   line-height: 1.5;
-}
-
-.research-vercel__note {
-  margin: 1rem 0 0;
-  padding-top: 0.75rem;
-  border-top: 1px solid rgba(255, 140, 43, 0.25);
-  font-size: 0.78rem;
-  color: var(--text-dim);
-  line-height: 1.55;
-}
-
-.research-vercel__code {
-  font-family: var(--font-mono);
-  font-size: 0.78em;
-  color: var(--cyan);
-  padding: 0 0.15em;
-  background: rgba(0, 0, 0, 0.35);
-  border-radius: 2px;
 }
 
 .research-coming-soon {

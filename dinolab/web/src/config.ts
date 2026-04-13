@@ -6,7 +6,7 @@ function isVercelProductionHost(): boolean {
   return import.meta.env.PROD && /\.vercel\.app$/i.test(window.location.hostname);
 }
 
-/** True on public *.vercel.app build where we show the Loco “hosted preview” console (not local dev). */
+/** True on public *.vercel.app build where we show the slim profile-only console (not local dev). */
 export function isVercelHostedResearchUI(): boolean {
   return (
     isVercelProductionHost() && import.meta.env.VITE_ALLOW_VERCEL_RESEARCH !== "true"
