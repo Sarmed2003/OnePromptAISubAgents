@@ -10,9 +10,9 @@ MAX_WORKERS=12
 SUBPLANNER_MAX_PARALLEL=8
 # Headroom if the model emits extra rows before the cap trims
 MAX_PLANNER_TASKS=64
-# Faster task completion = more rows sliding to “done” (optional)
-# STRICT_SDLC=false
 ```
+
+**Dashboard roles:** Parallel **task-* workers** always show as **Engineer** (by design). **Reviewer / QA / Security / DevOps / …** run in **later phases** after merges; with 32 tasks that can take a while. If you set **`STRICT_SDLC=false`** here for speed, **smart phase selection** usually **skips** those SDLC phases for this docs-only spec — you will mostly see **Planner + Engineers**. To **show every role** in the UI, use **`STRICT_SDLC=true`** and see **`PROMPT_PRESENTATION_SDLC_VISUAL.md`** (or `PROMPT.md` / `PROMPT_SAME_REPO.md`).
 
 ## Run
 
