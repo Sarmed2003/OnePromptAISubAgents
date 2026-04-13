@@ -1,5 +1,8 @@
 # DINOLAB — Bone Detective Lab
 
+[![CI Workflow](https://github.com/OnePromptAI/dinolab/actions/workflows/ci.yml/badge.svg)](https://github.com/OnePromptAI/dinolab/actions/workflows/ci.yml)
+[![Node.js Version](https://img.shields.io/badge/node-%3E%3D20-brightgreen)](https://nodejs.org/)
+
 College-level **retro-futuristic** web UI for exploring dinosaur **osteology** (2D lateral schematic + **interactive 3D bone map**) and optional **scientific Q&A** backed by **Amazon Bedrock** (via API Gateway + Lambda). It is an **example product** you can generate or extend with the **OnePromptAI multi-agent swarm** (see the [root README](../README.md) for the orchestrator, dashboard, and local run commands).
 
 ## Features
@@ -12,7 +15,7 @@ College-level **retro-futuristic** web UI for exploring dinosaur **osteology** (
 ## Repository layout
 
 | Path | Purpose |
-|------|---------|
+|------|----------|
 | `web/` | Vite + React + TypeScript UI |
 | `infra/` | AWS SAM — HTTP API, Ask Lambda, S3 asset bucket, optional query log table |
 
@@ -76,9 +79,9 @@ The default `https://YOUR-PROJECT.vercel.app` hostname comes from the **Vercel p
 
 **Environment variables (Production / Preview):** set at least **`VITE_API_URL`** to your deployed Ask API URL (no trailing slash) if you want the research console to call Bedrock. For the full form on `*.vercel.app`, also set **`VITE_ALLOW_VERCEL_RESEARCH=true`** and ensure the Lambda **CORS** allows your Vercel origin.
 
-**Research console on Vercel:** production builds on `*.vercel.app` show a **hosted preview** layout (two-column **Context** + mascot **Loco**, read-only question field, **“down for now, up soon!”** — **no** Bedrock `fetch`) unless you set `VITE_ALLOW_VERCEL_RESEARCH=true` **and** a working `VITE_API_URL`. Local `npm run dev` keeps the full Bedrock form when `VITE_API_URL` is set.
+**Research console on Vercel:** production builds on `*.vercel.app` show a **hosted preview** layout (two-column **Context** + mascot **Loco**, read-only question field, **"down for now, up soon!"** — **no** Bedrock `fetch`) unless you set `VITE_ALLOW_VERCEL_RESEARCH=true` **and** a working `VITE_API_URL`. Local `npm run dev` keeps the full Bedrock form when `VITE_API_URL` is set.
 
-**Deployment canceled — “unverified commit”:** Vercel skips builds when the Git commit’s author email is not linked to a **verified** GitHub account. Fix: [verify your email on GitHub](https://docs.github.com/en/account-and-profile/setting-up-and-managing-your-personal-account-on-github/managing-email-preferences/verifying-your-email-address), set `git config user.email` to that address, then amend or make a new commit and push. If the commit was made by someone else, they must verify their email or you must merge a new commit authored with a verified identity.
+**Deployment canceled — "unverified commit":** Vercel skips builds when the Git commit's author email is not linked to a **verified** GitHub account. Fix: [verify your email on GitHub](https://docs.github.com/en/account-and-profile/setting-up-and-managing-your-personal-account-on-github/managing-email-preferences/verifying-your-email-address), set `git config user.email` to that address, then amend or make a new commit and push. If the commit was made by someone else, they must verify their email or you must merge a new commit authored with a verified identity.
 
 ## Environment (web)
 
@@ -87,7 +90,7 @@ Copy `web/.env.example` to `web/.env`:
 - `VITE_API_URL` — API Gateway base URL after deploy
 - `VITE_ASSET_BASE` — optional CloudFront or S3 website URL for large assets later
 - `VITE_ALLOW_VERCEL_RESEARCH` — on Vercel only, `true` enables the full research form when the API is ready
-- `VITE_RESEARCH_COMING_SOON` — optional `true` on **non-Vercel** builds to mimic the Vercel “coming soon” UI
+- `VITE_RESEARCH_COMING_SOON` — optional `true` on **non-Vercel** builds to mimic the Vercel "coming soon" UI
 
 ## Scientific use disclaimer
 
