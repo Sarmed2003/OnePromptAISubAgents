@@ -25,7 +25,7 @@ I want a **website** that feels like a **futuristic museum lab** about **dinosau
 
 **Picking a dinosaur:** A **list of species** to choose from, each with **short facts**: what **family** it belongs to, **when** it lived, and **where** it’s from.
 
-**Looking at the body:** **Four switchable “views”**: **bones only**, **muscles sketched on**, a **soft body outline**, and something that looks like an **X-ray**. One style at a time so it’s easy to learn.
+**Looking at the body:** **Bones in 2D and 3D** — a lateral schematic and a **360° orbit bone map** — plus an optional **radiograph-style** look. **No** separate muscle or soft-tissue illustration layers (osteology-first).
 
 **Tapping a bone:** **Click a bone** → **side panel** in a **wireframe / hologram** style: **plain-language** what the bone does, plus a **more science-style** bit about how researchers study it.
 

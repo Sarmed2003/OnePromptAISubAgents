@@ -11,6 +11,34 @@ logger = logging.getLogger(__name__)
 
 _SKIP_DIR_NAMES = frozenset({".git", ".obsidian", "runs", "__pycache__"})
 
+# Top-level folders first (Obsidian-friendly “memory” / MOC layout). Rest follow alphabetically.
+_KNOWLEDGE_TOP_PRIORITY = ("memory", "decisions", "patterns", "architecture", "errors")
+
+
+def _top_level_priority(root: Path, path: Path) -> tuple[int, str]:
+    try:
+        rel = path.relative_to(root).as_posix()
+    except ValueError:
+        return (99, path.as_posix())
+    parts = rel.split("/")
+    if not parts:
+        return (99, rel)
+    top = parts[0].lower()
+    for i, name in enumerate(_KNOWLEDGE_TOP_PRIORITY):
+        if top == name:
+            return (i, rel)
+    return (len(_KNOWLEDGE_TOP_PRIORITY), rel)
+
+
+def _strip_obsidian_frontmatter(body: str) -> str:
+    """Remove leading YAML block (Obsidian properties) so the LLM sees prose only."""
+    if not body.startswith("---\n"):
+        return body
+    close = body.find("\n---\n", 4)
+    if close == -1:
+        return body
+    return body[close + 5 :].lstrip()
+
 
 def _is_knowledge_markdown(root: Path, path: Path) -> bool:
     if not path.is_file() or path.suffix.lower() != ".md":
@@ -28,7 +56,8 @@ def _is_knowledge_markdown(root: Path, path: Path) -> bool:
 def _list_knowledge_files(root: Path) -> list[Path]:
     if not root.is_dir():
         return []
-    return sorted(p for p in root.rglob("*.md") if _is_knowledge_markdown(root, p))
+    found = [p for p in root.rglob("*.md") if _is_knowledge_markdown(root, p)]
+    return sorted(found, key=lambda p: (_top_level_priority(root, p), p.as_posix().lower()))
 
 
 def _read_files_capped(files: list[Path], root: Path, max_chars: int) -> str:
@@ -38,7 +67,8 @@ def _read_files_capped(files: list[Path], root: Path, max_chars: int) -> str:
     total = 0
     for f in files:
         try:
-            body = f.read_text(encoding="utf-8", errors="replace")
+            raw = f.read_text(encoding="utf-8", errors="replace")
+            body = _strip_obsidian_frontmatter(raw)
         except OSError as e:
             logger.debug("Vault skip %s: %s", f, e)
             continue
@@ -79,11 +109,13 @@ class VaultReader:
         root = self.vault_path
         all_files = _list_knowledge_files(root)
         arch = root / "architecture"
-        preferred = [
-            p for p in all_files if arch in p.parents or p.parent == arch
-        ]
+        preferred = sorted(
+            (p for p in all_files if arch in p.parents or p.parent == arch),
+            key=lambda p: p.as_posix().lower(),
+        )
         rest = [p for p in all_files if p not in preferred]
-        ordered = preferred + rest
+        rest_sorted = sorted(rest, key=lambda p: (_top_level_priority(root, p), p.as_posix().lower()))
+        ordered = preferred + rest_sorted
         return _read_files_capped(ordered, root, self.max_context_chars)
 
     def file_count(self) -> int:

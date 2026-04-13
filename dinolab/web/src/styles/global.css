@@ -343,6 +343,125 @@ body {
   font-size: 0.88rem;
 }
 
+.anatomy-viewer__head-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 0.75rem;
+}
+
+.anatomy-viewer__view-toggle {
+  display: inline-flex;
+  border: 1px solid rgba(0, 210, 106, 0.35);
+  border-radius: 2px;
+  overflow: hidden;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.anatomy-view-toggle {
+  padding: 0.35rem 0.55rem;
+  margin: 0;
+  border: none;
+  background: rgba(0, 0, 0, 0.35);
+  color: var(--text-dim);
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
+}
+
+.anatomy-view-toggle:hover {
+  color: var(--text);
+  background: rgba(0, 210, 106, 0.08);
+}
+
+.anatomy-view-toggle.is-active {
+  background: rgba(0, 210, 106, 0.18);
+  color: var(--cyan);
+}
+
+.anatomy-3d-wrap {
+  position: relative;
+  margin-top: 0.75rem;
+  border: 1px solid var(--cyan-dim);
+  min-height: 320px;
+  height: min(52vh, 420px);
+  overflow: hidden;
+  background: radial-gradient(circle at 50% 40%, rgba(0, 210, 106, 0.06), #06090c 72%);
+}
+
+.anatomy-3d-wrap.is-xray {
+  border-color: rgba(180, 255, 255, 0.45);
+  background: radial-gradient(circle at 50% 40%, rgba(180, 255, 255, 0.05), #020408 75%);
+}
+
+/* Cast-style 3D: black stage */
+.anatomy-3d-wrap--cast {
+  border-color: rgba(255, 255, 255, 0.1);
+  background: #000000;
+  box-shadow: inset 0 0 80px rgba(0, 0, 0, 0.6);
+}
+
+.anatomy-3d-wrap--cast.is-xray {
+  border-color: rgba(255, 255, 255, 0.14);
+  background: #000000;
+}
+
+.anatomy-viewer-3d {
+  width: 100%;
+  height: 100%;
+  min-height: 280px;
+}
+
+.anatomy-viewer-3d__canvas {
+  width: 100% !important;
+  height: 100% !important;
+  display: block;
+  touch-action: none;
+}
+
+.anatomy-viewer-3d--specimen {
+  position: relative;
+}
+
+.anatomy-viewer-3d__caption {
+  position: absolute;
+  left: 0.5rem;
+  right: 0.5rem;
+  bottom: 0.35rem;
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  letter-spacing: 0.04em;
+  color: rgba(200, 220, 210, 0.55);
+  text-align: center;
+  pointer-events: none;
+  line-height: 1.35;
+}
+
+.anatomy-bones .bone-group--contralateral .bone-group path {
+  filter: brightness(0.92);
+}
+
+.anatomy-bones .bone-group--contralateral .bone-group.is-selected path {
+  filter: brightness(1.05);
+}
+
+.anatomy-3d-wrap__loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 280px;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  letter-spacing: 0.06em;
+}
+
 .anatomy-svg-wrap {
   position: relative;
   margin-top: 0.75rem;
@@ -432,23 +551,34 @@ body {
 }
 
 .bone-group:hover path {
-  fill: rgba(0, 210, 106, 0.55);
-  stroke: #fff;
+  fill: rgba(234, 88, 12, 0.55);
+  stroke: #ff8c2b;
   stroke-width: 1.8;
-  filter: drop-shadow(0 0 10px var(--cyan)) drop-shadow(0 0 22px var(--cyan-dim));
+  filter: drop-shadow(0 0 10px rgba(234, 88, 12, 0.55)) drop-shadow(0 0 22px rgba(255, 140, 43, 0.35));
 }
 
 .bone-group.is-selected path {
-  stroke: var(--magenta);
+  stroke: #0f3d24;
   stroke-width: 2.2;
-  fill: rgba(255, 140, 43, 0.35);
-  filter: drop-shadow(0 0 14px var(--magenta)) drop-shadow(0 0 30px var(--magenta-dim));
+  fill: rgba(20, 83, 45, 0.82);
+  filter: drop-shadow(0 0 12px rgba(5, 46, 22, 0.65)) drop-shadow(0 0 26px rgba(20, 83, 45, 0.45));
   animation: bone-lock-pulse 2s ease-in-out infinite;
 }
 
+.bone-group.is-selected:hover path {
+  fill: rgba(20, 83, 45, 0.9);
+  stroke: #052e16;
+  filter: drop-shadow(0 0 14px rgba(5, 46, 22, 0.75)) drop-shadow(0 0 30px rgba(20, 83, 45, 0.5));
+}
+
 @keyframes bone-lock-pulse {
-  0%, 100% { filter: drop-shadow(0 0 14px var(--magenta)) drop-shadow(0 0 30px var(--magenta-dim)); }
-  50% { filter: drop-shadow(0 0 18px var(--magenta)) drop-shadow(0 0 40px var(--magenta-dim)); }
+  0%,
+  100% {
+    filter: drop-shadow(0 0 12px rgba(5, 46, 22, 0.65)) drop-shadow(0 0 26px rgba(20, 83, 45, 0.45));
+  }
+  50% {
+    filter: drop-shadow(0 0 16px rgba(5, 46, 22, 0.8)) drop-shadow(0 0 34px rgba(20, 83, 45, 0.55));
+  }
 }
 
 .anatomy-svg-wrap.is-xray {
@@ -473,9 +603,21 @@ body {
 }
 
 .anatomy-svg-wrap.is-xray .bone-group:hover path {
-  fill: rgba(220, 255, 255, 0.25);
-  stroke: #fff;
-  filter: drop-shadow(0 0 10px rgba(200, 255, 255, 0.7));
+  fill: rgba(251, 146, 60, 0.35);
+  stroke: #fdba74;
+  filter: drop-shadow(0 0 10px rgba(251, 146, 60, 0.55));
+}
+
+.anatomy-svg-wrap.is-xray .bone-group.is-selected path {
+  fill: rgba(22, 163, 74, 0.42);
+  stroke: #15803d;
+  filter: drop-shadow(0 0 12px rgba(22, 163, 74, 0.5));
+  animation: none;
+}
+
+.anatomy-svg-wrap.is-xray .bone-group.is-selected:hover path {
+  fill: rgba(22, 163, 74, 0.5);
+  stroke: #166534;
 }
 
 .anatomy-svg-wrap.is-xray .soft-silhouette {
@@ -929,16 +1071,67 @@ body {
 
 .research-answer {
   margin-top: 1rem;
-  padding: 1rem;
+  padding: 0.75rem 1rem 1rem;
   background: rgba(0, 0, 0, 0.4);
   border: 1px solid var(--lime);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 
-.research-answer h3 {
-  margin: 0 0 0.5rem;
+.research-answer__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.4rem;
+  flex-shrink: 0;
+}
+
+.research-answer__head h3 {
+  margin: 0;
   font-family: var(--font-mono);
   font-size: 0.75rem;
   color: var(--lime);
+}
+
+.research-answer__scroll-hint {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+
+/* Caps vertical space; full text remains — scroll inside the panel. */
+.research-answer__scroll {
+  max-height: min(38vh, 280px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 0.5rem 0.6rem 0.5rem 0;
+  margin: 0 -0.15rem 0 0;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.25);
+  outline: none;
+}
+
+.research-answer__scroll:focus-visible {
+  box-shadow: 0 0 0 2px rgba(163, 230, 53, 0.35);
+}
+
+.research-answer__scroll::-webkit-scrollbar {
+  width: 8px;
+}
+
+.research-answer__scroll::-webkit-scrollbar-thumb {
+  background: rgba(163, 230, 53, 0.25);
+  border-radius: 4px;
+}
+
+.research-answer__scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(163, 230, 53, 0.4);
 }
 
 .research-answer__text {

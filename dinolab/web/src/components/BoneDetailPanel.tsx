@@ -11,7 +11,7 @@ export function BoneDetailPanel({ species, bone, onOpenResearch }: Props) {
     return (
       <aside className="bone-panel bone-panel--empty hologram-panel pixel-corners">
         <p className="bone-panel__placeholder">
-          <span className="cursor-blink">▍</span> Select a bone in the side view to load details.
+          <span className="cursor-blink">▍</span> Select a bone in the 2D schematic or 3D viewer.
         </p>
       </aside>
     );

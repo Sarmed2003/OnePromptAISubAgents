@@ -30,6 +30,7 @@ from .types import (
     TaskStatus,
 )
 from .vault import VaultReader
+from .run_roles import worker_display_role
 from .worker import Worker
 
 logger = logging.getLogger(__name__)
@@ -1211,6 +1212,7 @@ Review all cross-file references and fix any broken paths, imports, or wiring. O
 
         # ── Phase 1: Planning ─────────────────────────────────────────
         self._emit("phase", {"name": "planning"})
+        self._emit("planner_start", {})
         self._emit(
             "llm_busy",
             {
@@ -1244,6 +1246,7 @@ Review all cross-file references and fix any broken paths, imports, or wiring. O
             )
             logger.error(msg)
             self._emit("error", {"message": "Planner returned no tasks", "hint": msg})
+            self._emit("planner_done", {"task_count": 0, "status": "failed", "ids": []})
             return self.metrics
 
         self._emit("planner_done", {"task_count": len(tasks), "ids": [t.id for t in tasks][:20]})
@@ -1260,27 +1263,60 @@ Review all cross-file references and fix any broken paths, imports, or wiring. O
             )
             if not should_decompose:
                 return [task]
-            file_contents = await asyncio.to_thread(
-                self.git.read_files_in_scope, task.scope
-            )
-            async with sub_sem:
+            wid_sub = f"w-sub-{task.id}"
+            self._emit("subplanner_start", {"worker": wid_sub, "task": task.id})
+            try:
+                file_contents = await asyncio.to_thread(
+                    self.git.read_files_in_scope, task.scope
+                )
+                async with sub_sem:
+                    self._emit(
+                        "llm_busy",
+                        {
+                            "phase": "subplanner",
+                            "detail": f"Decomposing {task.id} (parallel up to {para})",
+                        },
+                    )
+                    subtasks = await self.subplanner.decompose(
+                        task, file_tree, file_contents
+                    )
+                if subtasks:
+                    self._emit("subplan", {
+                        "parent": task.id,
+                        "subtasks": [t.id for t in subtasks],
+                    })
+                    self._emit(
+                        "subplanner_done",
+                        {
+                            "worker": wid_sub,
+                            "task": task.id,
+                            "status": "complete",
+                            "sub_count": len(subtasks),
+                        },
+                    )
+                    return subtasks
                 self._emit(
-                    "llm_busy",
+                    "subplanner_done",
                     {
-                        "phase": "subplanner",
-                        "detail": f"Decomposing {task.id} (parallel up to {para})",
+                        "worker": wid_sub,
+                        "task": task.id,
+                        "status": "complete",
+                        "sub_count": 1,
                     },
                 )
-                subtasks = await self.subplanner.decompose(
-                    task, file_tree, file_contents
+                return [task]
+            except Exception as e:
+                logger.error("Subplanner failed for %s: %s", task.id, e)
+                self._emit(
+                    "subplanner_done",
+                    {
+                        "worker": wid_sub,
+                        "task": task.id,
+                        "status": "error",
+                        "error": str(e)[:240],
+                    },
                 )
-            if subtasks:
-                self._emit("subplan", {
-                    "parent": task.id,
-                    "subtasks": [t.id for t in subtasks],
-                })
-                return subtasks
-            return [task]
+                return [task]
 
         expanded = await asyncio.gather(*[_expand_one(t) for t in tasks])
         all_tasks: list[Task] = [t for group in expanded for t in group]
@@ -1357,7 +1393,7 @@ Review all cross-file references and fix any broken paths, imports, or wiring. O
                     self._emit("worker_start", {
                         "worker": worker_id,
                         "task": task.id,
-                        "role": "worker",
+                        "role": worker_display_role(task.id),
                         "sandboxed": True,
                     })
 

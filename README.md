@@ -1,373 +1,201 @@
-# DINOLAB
+# OnePromptAI
 
-**Live progress dashboard for multi-agent AI project generation** — watch your project build in real-time as autonomous agents coordinate across parallel tasks.
+**Multi-agent coding swarm** — turn a single prompt into a planned set of parallel tasks, each executed on its own git branch, merged through a queue, and (optionally) reviewed through SDLC-style phases. A **Rich terminal dashboard** shows sub-agents (planner, workers, reviewer, etc.), merge health, and task progress in real time.
 
-DINOLAB is the web UI + orchestration layer for [OnePromptAI](https://github.com/YOUR_USERNAME/OnePromptAI), a scaled-down, hackathon-friendly multi-agent orchestrator that runs on a single machine using free-tier APIs.
+**DINOLAB** in this repo is a **reference project** the swarm can build or extend (Vite + React UI + optional AWS SAM backend). The core product is the **orchestrator + dashboard + worker pool**, not only DINOLAB.
 
-## What It Does
+---
 
-Given a project specification, DINOLAB:
+## Plain-language: what happens
 
-1. **Plans** — A planner agent decomposes the project into granular, parallelizable tasks
-2. **Dispatches** — Tasks are assigned to isolated worker agents running on separate git branches
-3. **Executes** — Workers generate complete code, commit to their branches, and produce handoff reports
-4. **Merges** — A serial merge queue integrates worker branches into main, detecting conflicts
-5. **Reconciles** — A reconciler agent monitors build health and spawns targeted fix tasks
-6. **Visualizes** — A **live web dashboard** shows real-time progress, agent activity, and git history
+1. You describe what you want built (prompt or SPEC file).
+2. A **planner** breaks that into a list of tasks that can run without stepping on the same files.
+3. **Subplanners** sometimes expand big tasks into smaller ones.
+4. Optional phases (architect, reviewer, QA, security, DevOps, etc.) add structure when enabled.
+5. Several **workers** run **at the same time** (up to your `MAX_WORKERS` limit). Each worker is like a separate “agent” focused on one task, on its own branch.
+6. A **merge queue** brings worker branches back into `main` one after another so conflicts are easier to control.
+7. If something breaks (build, merge, health checks), the system can spawn **fix-up** tasks.
+8. The **dashboard** lists who is running (by role), who finished, merge stats, and an activity log.
 
-## Quick Start: 3 Steps
+**Important:** A **task** is a unit of work (one chunk of the plan). A **worker** is the runtime that picks up tasks from the queue. You usually have **fewer concurrent workers than total tasks** — workers are recycled. Parallelism = up to `MAX_WORKERS` tasks **at the same time**, not “one AWS instance per task.”
 
-### Step 1: Install Dependencies
+---
+
+## Technical: stack, flow, and value
+
+| Layer | Technology | What it does | Value |
+|--------|------------|--------------|--------|
+| CLI | **Click** | Args, optional interactive dashboard prompt | Simple entrypoint; `python main.py --dashboard` can prompt after welcome |
+| Orchestration | **Python 3.11+, asyncio** | Phases, worker pool, merge queue | Single-machine swarm without Kubernetes |
+| LLM | **Bedrock / Gemini / Ollama** (`LLM_CLIENT`) | Planner, subplanner, workers, reconciler, SDLC phases | Pick cloud vs local; Bedrock fits AWS-centric teams |
+| Persistence | **DynamoDB** (default), **MongoDB**, or **memory** | Tasks, events, run metrics | **DynamoDB** + **boto3**: durable state without running a DB server |
+| Git | **GitPython**, remote **GitHub** | Clone target repo, branches, commits, merge | Isolation per worker via branches/worktrees |
+| Isolation | **Git worktrees** (`sandbox.py`) | Separate working trees per worker | Avoids file clashes while coding |
+| Dashboard | **Rich** (`dashboard.py`) | Live layout: metrics, in-progress agents, completed, merge bar | **Achieved** operator visibility without a separate web UI |
+| Knowledge | **Markdown vault** (`vault.py`) | Optional context for planner/architect; Obsidian-friendly | **Utilizing** on-disk `.md` (and **stripped YAML frontmatter**) to steer the model without a vector DB |
+| DINOLAB deploy | **AWS SAM**: **API Gateway**, **Lambda**, **S3**, **DynamoDB** (optional log) | Hosted research Q&A + static assets | **Swarm runtime does not require these** — they are for the DINOLAB web app + Bedrock HTTP API |
+
+**AWS and the swarm only:** If `LLM_PROVIDER=bedrock`, the orchestrator calls **Amazon Bedrock** (`bedrock-runtime`, Converse). If `DB_BACKEND=dynamodb`, it uses **DynamoDB**. No **EC2** or **S3** are used by the core swarm process on your laptop.
+
+---
+
+## Run locally (swarm)
 
 ```bash
-# Navigate to the web directory
-cd dinolab/web/
-
-# Install Node.js dependencies and run dev server
-npm install && npm run dev
-```
-
-The dev server starts on `http://localhost:5173` by default. **The live progress dashboard appears immediately on build start** — no waiting, no manual refresh.
-
-### Step 2: Start the Orchestrator (Python)
-
-In a separate terminal, from the repository root:
-
-```bash
-# Create virtual environment
+git clone https://github.com/YOUR_USERNAME/OnePromptAI.git
+cd OnePromptAI
 python3 -m venv .venv
-source .venv/bin/activate
-
-# Install Python dependencies
+source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
-
-# Configure environment
 cp .env.example .env
-# Edit .env with your API keys (see Setup Guide below)
+# Edit .env: GIT_REPO_URL, GIT_TOKEN, LLM keys, TARGET_REPO_PATH, etc.
 
-# Run the orchestrator with dashboard
-python main.py --dashboard "Build a REST API with user authentication"
+# Headless (NDJSON events on stdout)
+python main.py "Your task description"
+
+# Terminal dashboard + interactive prompt (welcome line, then type your task)
+python main.py --dashboard
+
+# Dashboard + prompt on the command line
+python main.py --dashboard "Your task description"
+
+# From a SPEC file
+python main.py --spec path/to/SPEC.md "Build the project"
+
+# Fresh clone of target repo next run
+python main.py --reset
 ```
 
-The orchestrator connects to the web dashboard and streams real-time updates. You'll see:
-- **Tasks** being planned and dispatched
-- **Workers** executing in parallel
-- **Merge queue** integrating branches
-- **Build health** monitored by the reconciler
-- **Git commits** flowing into the target repository
+---
 
-### Step 3 (Optional): Generate History Movie
+## DINOLAB research console (Bedrock Q&A in the browser)
 
-Once your project is built and committed to GitHub, generate a Gource visualization:
+Terminal 1 — local API (pick a free port if `8787` is busy):
 
 ```bash
-# From the repository root
-bash scripts/gource-dinolab.sh
+cd dinolab/infra
+BEDROCK_MODEL_ID=us.anthropic.claude-haiku-4-5-20251001-v1:0 BEDROCK_REGION=us-east-1 \
+  python local_ask_server.py --host 127.0.0.1 --port 8787
 ```
 
-This creates a `.mp4` movie of your project's git history, showing commits flowing across branches and merging into main. Perfect for demos.
-
----
-
-## Setup Guide
-
-### Prerequisites
-- **Python 3.11+**
-- **Git**
-- **Node.js 18+** (for the web UI)
-- **Gource** (optional, for history movie): `brew install gource` or `apt-get install gource`
-
-### Required Accounts & API Keys
-
-Configure the **LLM** with `LLM_PROVIDER` in `.env` (see `.env.example`: **bedrock** and **gemini** are documented; **ollama** for local models).
-
-#### 1. Google Gemini API (FREE)
-- Go to [Google AI Studio](https://aistudio.google.com/apikey)
-- Click "Create API Key"
-- Set `GEMINI_API_KEY` in your `.env`
-- Free tier: 15 RPM, 1M tokens/day (sufficient for our scale)
-
-#### 1b. AWS Bedrock (if `LLM_PROVIDER=bedrock`)
-- IAM user or role with `bedrock:InvokeModel`; set `AWS_REGION`, `BEDROCK_MODEL_ID`, and credentials (or use `~/.aws/credentials`).
-- See comments in `.env.example` for model IDs and access notes.
-
-#### 2. GitHub Personal Access Token
-- Go to [GitHub Settings → Tokens](https://github.com/settings/tokens)
-- Create a Fine-grained token with repo read/write permissions
-- Set `GIT_TOKEN` in your `.env`
-
-#### 3. Target Repository
-- Create a new empty GitHub repo for the project to be built
-- Set `GIT_REPO_URL` in your `.env`
-
-#### 4. Persistence (pick one in `.env`)
-- **DynamoDB (default):** Set `DB_BACKEND=dynamodb` with AWS credentials / IAM; tables are created on first connect.
-- **MongoDB:** Set `DB_BACKEND=mongodb` and `MONGODB_URI` (local or [Atlas](https://www.mongodb.com/cloud/atlas)).
-- **In-memory:** Set `DB_BACKEND=memory` for a quick try (no cross-run persistence).
-
-### Optional: Local Ask Server (for interactive agent feedback)
-
-If you want agents to ask clarifying questions during execution, run the optional ask server:
+Terminal 2 — web UI:
 
 ```bash
-# In a third terminal
-python -m oneprompt.ask_server
+cd dinolab/web
+# In .env: VITE_API_URL=http://127.0.0.1:8787  (must match the server port)
+npm install
+npm run dev
 ```
 
-This allows workers to pause and request input from you (e.g., "Should I use TypeScript or JavaScript?"). Without it, agents proceed with defaults. See `oneprompt/ask_server.py` for configuration.
+Open the URL Vite prints (e.g. `http://localhost:5173`). The research panel calls your API, which calls **Bedrock**.
 
 ---
 
-## Architecture
+## Bring your own repo / use case
 
-```
-User Prompt / SPEC.md
-        │
-        ▼
-   ┌─────────┐
-   │ Planner  │ ── Gemini API ── decomposes into tasks
-   └────┬─────┘
-        │
-   ┌────▼──────┐
-   │ Subplanner│ ── further breaks down large tasks
-   └────┬──────┘
-        │
-   ┌────▼──────────────────────────┐
-   │ Worker Pool (3-5 parallel)    │
-   │  ┌────────┐ ┌────────┐       │
-   │  │Worker 1│ │Worker 2│ ...   │ ── each on isolated git branch
-   │  └───┬────┘ └───┬────┘       │
-   └──────┼──────────┼────────────┘
-          │          │
-   ┌──────▼──────────▼────┐
-   │    Merge Queue        │ ── serial merge into main
-   └──────────┬────────────┘
-              │
-   ┌──────────▼────────────┐
-   │    Reconciler          │ ── checks build health, emits fixes
-   └──────────┬────────────┘
-              │
-   ┌──────────▼────────────┐
-   │  DINOLAB Web Dashboard │ ── live progress, agent activity, git history
-   └───────────────────────┘
-```
+1. **Fork or clone** OnePromptAI.
+2. **Create an empty (or template) GitHub repo** for generated code; set `GIT_REPO_URL` and `GIT_TOKEN` in `.env`.
+3. Set **`TARGET_REPO_PATH`** (local clone path, e.g. `./target-repo`).
+4. Choose **`LLM_PROVIDER`** and keys (**Gemini**, **Bedrock**, or **Ollama**).
+5. Choose **`DB_BACKEND`** (`memory` for a quick try without AWS; `dynamodb` for persistence).
+6. Optionally add **`vault/`** markdown (or open the same folder in **Obsidian**) for planner/architect context — see `vault/OBSIDIAN.md`.
+7. Run **`python main.py --dashboard`** and enter your prompt.
 
-## Tech Stack
-
-| Component | Tool | Purpose |
-|-----------|------|------|
-| LLM | **AWS Bedrock**, **Google Gemini**, or **Ollama** (`LLM_PROVIDER` in `.env`) | Planning, code generation, reconciliation |
-| Orchestrator | **Python + asyncio** | Coordinates all agents and queues |
-| State Storage | **DynamoDB** (default), **MongoDB**, or **in-memory** (`DB_BACKEND`) | Tasks, events, run metrics |
-| Version Control | **Git + GitHub** | Branch isolation, merge queue, CI/CD |
-| Sandboxing | **Local git worktrees** | Isolated workspace per worker |
-| Web Dashboard | **Vite + React** | Real-time progress, agent activity, git log |
-| Terminal Dashboard | **Rich** (Python) | Alternative terminal monitoring UI |
-| CLI | **Click** | Command-line interface |
-
-## Configuration
-
-All configuration is via `.env`. See `.env.example` for all options.
-
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------||
-| `LLM_PROVIDER` | No | `gemini` in code; see `.env.example` | `bedrock`, `gemini`, or `ollama` |
-| `GEMINI_API_KEY` | If `LLM_PROVIDER=gemini` | — | Google AI Studio API key |
-| `GIT_REPO_URL` | Yes | — | Target repository URL |
-| `GIT_TOKEN` | Yes | — | GitHub PAT with push access |
-| `MAX_WORKERS` | No | `8` in code | Parallel workers (3–5 typical on a laptop) |
-| `DB_BACKEND` | No | `dynamodb` | `dynamodb`, `mongodb`, or `memory` |
-| `MONGODB_URI` | If `DB_BACKEND=mongodb` | — | MongoDB connection string |
-| `DASHBOARD_URL` | No | `http://localhost:5173` | Web dashboard URL for agent updates |
-
-## Decision Point: Do You Want to Publish Live?
-
-Once your project is built and tested locally:
-
-### Option A: Deploy to Vercel (Recommended for Web UIs)
-If your project includes a web UI (React, Next.js, etc.):
-
-1. Push your target repo to GitHub
-2. Go to [Vercel](https://vercel.com) and import the repository
-3. Set **Root Directory** to `dinolab/web/` if using DINOLAB UI
-4. Deploy — Vercel auto-builds on every push
-
-**Troubleshooting:** If Vercel cancels with "unverified commit", see the **Vercel Deployment** section below.
-
-### Option B: Deploy Backend API
-If your project is a REST API or service:
-
-1. Push to GitHub
-2. Deploy to your preferred platform:
-   - **AWS Lambda** + API Gateway
-   - **Render**, **Railway**, **Fly.io** (simple git-to-deploy)
-   - **Docker** + your own server
-
-### Option C: Keep Local
-Run the orchestrator + dashboard locally for development. Useful for:
-- Iterating on agent behavior
-- Testing without deploying
-- Demos and hackathons
+You do **not** have to use DINOLAB; point `GIT_REPO_URL` at any repo the swarm should clone and push to.
 
 ---
 
-## Generating a Gource History Movie
+## Configuration (summary)
 
-Gource visualizes your project's git history as a beautiful, flowing tree of commits.
+| Variable | Role |
+|----------|------|
+| `LLM_PROVIDER` | `bedrock` \| `gemini` \| `ollama` |
+| `GIT_REPO_URL` / `GIT_TOKEN` | Target repository |
+| `MAX_WORKERS` | Parallel workers (typical 3–5 on a laptop) |
+| `DB_BACKEND` | `dynamodb` \| `mongodb` \| `memory` |
+| `VAULT_PATH` | Optional knowledge markdown |
+| `STRICT_SDLC` / phase `*_ENABLED` | Which phases run (affects dashboard “roles”) |
 
-### Prerequisites
-```bash
-# macOS
-brew install gource
-
-# Ubuntu/Debian
-sudo apt-get install gource
-
-# Or download: https://gource.io/
-```
-
-### Generate the Movie
-
-```bash
-# From the DINOLAB repository root
-bash scripts/gource-dinolab.sh
-```
-
-This script:
-1. Clones or updates your target repository (from `GIT_REPO_URL` in `.env`)
-2. Runs Gource to generate a `.mp4` file
-3. Saves it to `gource-output.mp4`
-
-The movie shows:
-- **Branches** as separate streams
-- **Commits** flowing from workers into main
-- **File changes** as they accumulate
-- **Merge events** as branches integrate
-
-Perfect for:
-- Demos at hackathons or conferences
-- Showcasing parallel agent work
-- Understanding project evolution at a glance
-
-### Customizing Gource Output
-
-Edit `scripts/gource-dinolab.sh` to adjust:
-- Resolution (`--width`, `--height`)
-- Duration (`--stop-at-end`, `--seconds-per-day`)
-- Output format (`--output-ppm-stream`)
-
-See [Gource documentation](https://gource.io/) for all options.
+Full list: **`.env.example`**.
 
 ---
 
-## Project Structure
+## FAQ
 
-```
-DINOLAB/
-├── README.md                   # This file
-├── main.py                     # CLI entry point
-├── dashboard.py                # Rich terminal dashboard
-├── oneprompt/
-│   ├── config.py               # Environment configuration
-│   ├── types.py                # Shared data models
-│   ├── llm_client.py           # Gemini API wrapper
-│   ├── orchestrator.py         # Main coordination loop
-│   ├── planner.py              # Task decomposition
-│   ├── worker.py               # Code generation agent
-│   ├── reconciler.py           # Build health monitor
-│   ├── task_queue.py           # Priority task queue
-│   ├── merge_queue.py          # Git merge queue
-│   ├── git_utils.py            # Git operations
-│   ├── vault.py                # Optional knowledge vault + run summaries
-│   ├── sandbox.py              # Local worktree isolation
-│   ├── ask_server.py           # Optional interactive ask server
-│   └── db.py                   # MongoDB persistence
-├── prompts/
-│   ├── planner.md              # Planner system prompt
-│   ├── subplanner.md           # Subplanner system prompt
-│   ├── worker.md               # Worker system prompt
-│   └── reconciler.md           # Reconciler system prompt
-├── dinolab/
-│   ├── README.md               # DINOLAB web UI documentation
-│   ├── web/                    # Vite + React web dashboard
-│   │   ├── src/
-│   │   ├── package.json
-│   │   └── vite.config.ts
-│   └── sam/                    # AWS SAM infrastructure (optional)
-├── templates/                  # Optional prompt overlays (see templates/README.md)
-├── examples/
-│   └── example/
-│       ├── SPEC.md             # Example project specification
-│       ├── AGENTS.md           # Agent coordination rules
-│       ├── ENTRY_POINT.md      # Project entry point docs
-│       ├── DECISIONS.md        # Architecture decisions
-│       └── RUNBOOK.md          # Operational runbook
-├── scripts/
-│   └── gource-dinolab.sh       # Gource helper for target-repo history
-├── requirements.txt
-├── pyproject.toml
-└── .env.example
-```
+**Q (non-technical): Is each line on the dashboard a separate person?**  
+**A:** No. They are **roles or workers** tracked by the app. Several “workers” may run one after another on different tasks; only up to `MAX_WORKERS` run at the same time.
 
-## Troubleshooting
+**Q (non-technical): Why didn’t I see “Architect” or “Reviewer”?**  
+**A:** Those steps only appear if those **phases are enabled** and the run **reaches** them. If smart phase selection skips them, or a flag turns them off, they won’t show. See `.env.example` (`ARCHITECT_ENABLED`, `STRICT_SDLC`, etc.).
 
-### Dashboard shows **0 agents** for many minutes (FEATURES `0/1`, timer ticking)
+**Q (non-technical): Where did my code go?**  
+**A:** In the **local clone** at `TARGET_REPO_PATH`, and on **GitHub** at `GIT_REPO_URL` after pushes.
 
-Workers only start **after** (1) smart phase selection, (2) **planner** LLM, (3) **subplanner** calls for large tasks, (4) optional **architect** LLM. That can take **several minutes** on a big spec or a **large target-repo file tree**. Check the **Activity** log for `LLM · planner` / `Planner returned N top-level task(s)`.
+**Q (technical): DynamoDB vs memory?**  
+**A:** Memory loses state when the process exits. DynamoDB keeps task/event history and supports restarts; requires AWS credentials and `boto3`.
 
-- Set **`MAX_FILE_TREE_LINES=400`** (or lower) in `.env` if the target repo is a monorepo.
-- Use an **empty or small** target repo for demos, or `python main.py --reset` before re-running.
-- Increase **`SUBPLANNER_MAX_PARALLEL`** (e.g. `6`) to speed the pre-worker phase.
+**Q (technical): Why Bedrock for the swarm vs DINOLAB Lambda?**  
+**A:** Same family of API (Converse): orchestrator can use Bedrock directly from your machine; DINOLAB’s deployed **Lambda** is a separate HTTP path for the browser research console.
 
-### "Run complete" but no agents / `none scheduled (planner returned no tasks)`
-
-The run still spends time on **clone, smart-phase selection, and planner LLM calls** — it is not instant. If the **planner** returns an empty task list, workers never start (often when the **target repo file tree** already matches the spec and the model chooses `"tasks": []`). The orchestrator **retries planning once** with a stronger nudge; if it still fails:
-
-- `python main.py --reset` then re-run, or use an **empty** target GitHub repo.
-- Run with `LOG_LEVEL=debug` to see planner logs.
-- Optional: lower `VAULT_MAX_CONTEXT_CHARS` if vault context overwhelms the model.
-
-Missing files under `prompts/*.md` (e.g. `architect.md`) log warnings; phases that need them are **skipped** until you add those prompts.
-
-### Web Dashboard Not Connecting
-
-If the web UI shows "Waiting for orchestrator...":
-
-1. Check that `npm run dev` is running on `http://localhost:5173`
-2. Check that `python main.py --dashboard ...` is running and has `DASHBOARD_URL=http://localhost:5173` in `.env`
-3. Check browser console for CORS or connection errors
-4. Verify the orchestrator is writing updates to the dashboard (check terminal output)
-
-### Gource Movie Generation Fails
-
-If `scripts/gource-dinolab.sh` fails:
-
-1. Verify Gource is installed: `gource --version`
-2. Check that `GIT_REPO_URL` in `.env` is valid and accessible
-3. Verify git history exists: `cd target-repo && git log --oneline | head -20`
-4. Try manually: `gource /path/to/target-repo --output-ppm-stream | ffmpeg -y -f image2pipe -vcodec ppm -i - -vcodec libx264 -preset ultrafast -pix_fmt yuv420p output.mp4`
-
-### Vercel: "Deployment was canceled … unverified commit"
-
-Vercel will not build commits whose **author email** GitHub does not treat as yours (unverified or not added). See [Vercel: troubleshoot collaboration](https://vercel.com/docs/deployments/troubleshoot-project-collaboration) and [GitHub: verifying your email](https://docs.github.com/en/account-and-profile/setting-up-and-managing-your-personal-account-on-github/managing-email-preferences/verifying-your-email-address).
-
-1. On GitHub: **Settings → Emails** — add the address you use in Git (e.g. university or `noreply`) and complete **verification**.
-2. Locally: `git config user.name "Your Name"` and `git config user.email "same-as-github-verified@example.com"`.
-3. **Vercel:** [Account → Settings → Authentication](https://vercel.com/account/settings/authentication) — connect **GitHub**. Under [Email](https://vercel.com/account/settings#email), add/verify any extra addresses you commit with.
-4. Create a **new commit** with the corrected author (empty commit is enough), push to `main`, or run `git commit --amend --reset-author --no-edit` on the latest commit and **force-push** if you are the only one on the branch.
-
-On the GitHub commit page, your avatar should appear on the commit; if it shows as "unverified" or generic, Vercel may still cancel until the email matches a verified GitHub email.
-
-**Do not `git push` from `target-repo/`** to fix Vercel: that directory is a **separate clone** used for agent output. Amending commits there and using `git push --force-with-lease` without `git fetch` yields **stale info**, and a forced push could **wipe `main`** on GitHub. Sync it with `git fetch origin && git reset --hard origin/main`, and always push from your **primary** repo root (DINOLAB checkout).
+**Q (technical): How does Obsidian tie in?**  
+**A:** Edit `.md` under `VAULT_PATH`. The orchestrator **does not** call Obsidian; it reads files. `.obsidian/` is ignored. See `vault/OBSIDIAN.md`.
 
 ---
 
-## Next Steps
+## Architecture (high level)
 
-1. **Try a demo:** `npm install && npm run dev` in `dinolab/web/`, then `python main.py --dashboard "Build a todo app"`
-2. **Read the docs:** See `dinolab/README.md` for web UI details, `templates/README.md` for prompt customization
-3. **Deploy:** Follow the **Decision Point** section above to publish your first project
-4. **Generate a movie:** Use `scripts/gource-dinolab.sh` to visualize your project's git history
+```
+User prompt / SPEC.md
+       │
+       ▼
+  Planner (LLM) ──► task list
+       │
+       ▼
+  Subplanner(s) (optional, LLM) ──► refined tasks
+       │
+       ▼
+  Optional SDLC phases (architect, review, QA, …) ──► LLM + git commits
+       │
+       ▼
+  Worker pool (async, max N parallel) ──► branches, commits, handoffs
+       │
+       ▼
+  Merge queue (serial) ──► main
+       │
+       ▼
+  Reconciler / recovery tasks (as needed)
+```
+
+---
+
+## Project layout
+
+```
+OnePromptAI/
+├── main.py              # CLI (interactive --dashboard supported)
+├── dashboard.py         # Rich AGENTSWARM-style UI
+├── oneprompt/           # Orchestrator, LLM client, db, vault, merge/worker logic
+├── prompts/             # System prompts for roles
+├── dinolab/             # Example web app + SAM infra (optional)
+├── examples/            # Sample SPEC / demo prompts
+├── vault/               # Optional knowledge base (+ OBSIDIAN.md)
+├── templates/           # Optional template packs
+└── scripts/             # e.g. gource helper
+```
+
+---
+
+## Troubleshooting (short)
+
+- **Port in use** (DINOLAB API): `lsof -nP -iTCP:8787 -sTCP:LISTEN` then `kill <PID>`, or use `--port 8788` and match `VITE_API_URL`.
+- **Planner returns 0 tasks:** often target repo already matches spec; try `--reset` or an empty repo; see logs / `MAX_FILE_TREE_LINES`.
+- **Strict SDLC exit code 1:** failed tasks or phase errors; fix or set `STRICT_SDLC=false` for a looser run.
+
+---
+
+## Compare / inspiration
+
+Inspired by [Longshot](https://github.com/Blastgits/longshot). OnePromptAI targets **smaller** projects and **local** worktrees, with **configurable** LLM and DB backends.
 
 ---
 
@@ -375,8 +203,9 @@ On the GitHub commit page, your avatar should appear on the commit; if it shows 
 
 MIT
 
+---
+
 ## Also in this repository
 
-- **dinolab/web/** — Vite + React DINOLAB UI. For Vercel, set the project **Root Directory** to `dinolab/web`.
-- **oneprompt/** — Python multi-agent orchestrator (swarm).
-- **templates/** — optional prompt overlays for `main.py` / `TEMPLATE` env (see `templates/README.md`).
+- **`dinolab/web/`** — DINOLAB UI (Vite + React). Deploy details: `dinolab/README.md`.
+- **Vercel “unverified commit”** — see previous troubleshooting in GitHub/Vercel docs; use a verified commit author email.

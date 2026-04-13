@@ -9,7 +9,7 @@ import type { AnatomyLayer, BoneRecord } from "./data/types";
 import { API_URL, isResearchComingSoon, isVercelHostedResearchUI } from "./config";
 import { PROJECT } from "./project";
 
-const DEFAULT_LAYERS: AnatomyLayer[] = ["skeleton", "muscle", "soft"];
+const DEFAULT_LAYERS: AnatomyLayer[] = ["skeleton"];
 
 export default function App() {
   const [speciesId, setSpeciesId] = useState(SPECIES[0]?.id ?? "trex");
@@ -82,7 +82,7 @@ export default function App() {
             <div><dt>Locality</dt><dd>{species.locality}</dd></div>
           </dl>
           <div className="sidebar-left__layers">
-            <h3 className="sidebar-section-title">Anatomy layers</h3>
+            <h3 className="sidebar-section-title">Display</h3>
             <LayerToggle active={layers} onToggle={toggleLayer} />
           </div>
         </aside>

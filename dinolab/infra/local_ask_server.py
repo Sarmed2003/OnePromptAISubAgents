@@ -10,6 +10,7 @@ import argparse
 import json
 import logging
 import os
+import urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
@@ -52,13 +53,66 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Type", "application/json")
         self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Access-Control-Allow-Headers", "Content-Type,Authorization")
-        self.send_header("Access-Control-Allow-Methods", "OPTIONS,POST")
+        self.send_header("Access-Control-Allow-Methods", "OPTIONS,POST,GET")
+        self.send_header("Content-Length", str(len(raw)))
+        self.end_headers()
+        self.wfile.write(raw)
+
+    def _send_html(self, status: int, html: str) -> None:
+        raw = html.encode("utf-8")
+        self.send_response(status)
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Content-Length", str(len(raw)))
         self.end_headers()
         self.wfile.write(raw)
 
     def do_OPTIONS(self) -> None:  # noqa: N802
         self._send(200, {"ok": True})
+
+    def do_GET(self) -> None:  # noqa: N802
+        """Browser checks often hit GET / — explain that the UI runs via Vite, not here."""
+        parsed = urllib.parse.urlparse(self.path)
+        path = (parsed.path or "/").rstrip("/") or "/"
+
+        if path == "/favicon.ico":
+            self.send_response(204)
+            self.end_headers()
+            return
+
+        if path == "/health":
+            self._send(200, {"ok": True, "service": "dinolab-local-ask", "askPath": "/lab/ask"})
+            return
+
+        if path == "/":
+            port = self.server.server_address[1]
+            html = f"""<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"/><title>DINOLAB local API</title>
+<style>body{{font-family:system-ui,sans-serif;max-width:42rem;margin:2rem;line-height:1.45}}
+code,pre{{background:#f4f4f5;padding:0.15em 0.35em;border-radius:4px}}pre{{padding:0.75em;overflow:auto}}</style></head>
+<body>
+<h1>DINOLAB local API is running</h1>
+<p>This address (<strong>port {port}</strong>) is the <em>research backend</em> only. There is no web app here — a <code>501</code> on GET used to mean “wrong place”; you are in the right place now.</p>
+<h2>To use the research console</h2>
+<ol>
+<li>Keep this terminal process running.</li>
+<li>Open a <strong>second</strong> terminal and run:<pre>cd dinolab/web
+cp .env.example .env
+# Edit .env — set:</pre>
+<pre>VITE_API_URL=http://127.0.0.1:{port}</pre>
+<pre>npm install
+npm run dev</pre></li>
+<li>Open the URL Vite prints (e.g. <code>http://localhost:5173</code>), then use <strong>Research</strong> in the app — it sends <code>POST /lab/ask</code> here.</li>
+</ol>
+<p><a href="/health">GET /health</a> — JSON status for scripts.</p>
+</body></html>"""
+            self._send_html(200, html)
+            return
+
+        self.send_response(404)
+        self.send_header("Content-Type", "application/json")
+        self.end_headers()
+        self.wfile.write(b'{"error":"not_found"}')
 
     def do_POST(self) -> None:  # noqa: N802
         if self.path != "/lab/ask":

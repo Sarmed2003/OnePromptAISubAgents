@@ -1,5 +1,20 @@
+import { lazy, Suspense, useState } from "react";
 import type { AnatomyLayer, BoneRecord, DinosaurSpecies } from "../data/types";
-import { DEFAULT_SHAPE, SPECIMEN_SHAPES, type BoneId } from "../data/anatomyShapes";
+import {
+  BONE_ORDER,
+  DEFAULT_SHAPE,
+  LATERAL_MIRROR_BONE_IDS,
+  SPECIMEN_SHAPES,
+} from "../data/anatomyShapes";
+
+const SVG_VIEW_WIDTH = 420;
+
+const AnatomyViewer3D = lazy(async () => {
+  const m = await import("./AnatomyViewer3D");
+  return { default: m.AnatomyViewer3D };
+});
+
+type ViewMode = "2d" | "3d";
 
 interface Props {
   species: DinosaurSpecies;
@@ -8,32 +23,13 @@ interface Props {
   onSelectBone: (bone: BoneRecord) => void;
 }
 
-function layerClass(active: Set<AnatomyLayer>, layer: AnatomyLayer): string {
-  return `anatomy-layer anatomy-layer--${layer} ${active.has(layer) ? "is-on" : "is-off"}`;
-}
-
-// Global fit transforms to keep soft/myology tightly aligned to the radiograph skeleton.
-const SOFT_FIT_TRANSFORM = "translate(34 20) scale(0.84 0.84)";
-const MUSCLE_FIT_TRANSFORM = "translate(21 12) scale(0.9 0.9)";
-
 export function AnatomyViewer({ species, activeLayers, selectedBoneId, onSelectBone }: Props) {
+  const [viewMode, setViewMode] = useState<ViewMode>("2d");
   const showBones = activeLayers.has("skeleton") || activeLayers.has("xray");
   const xrayMode = activeLayers.has("xray");
   const shape = SPECIMEN_SHAPES[species.id] ?? DEFAULT_SHAPE;
-  const boneOrder: BoneId[] = [
-    "skull",
-    "cervical",
-    "dorsal",
-    "caudal",
-    "scapula",
-    "humerus",
-    "antebrachium",
-    "manus",
-    "ilium",
-    "femur",
-    "tibia",
-    "pes",
-  ];
+  const boneOrder = BONE_ORDER;
+  const castStage = species.viewerStyle === "cast";
 
   const handleClick = (e: React.MouseEvent<SVGElement>) => {
     const t = e.target as SVGElement;
@@ -48,10 +44,54 @@ export function AnatomyViewer({ species, activeLayers, selectedBoneId, onSelectB
   return (
     <div className="anatomy-viewer hologram-panel pixel-corners">
       <header className="anatomy-viewer__head">
-        <span className="tag tag--pulse">LATERAL · SCHEMA</span>
+        <div className="anatomy-viewer__head-row">
+          <span className="tag tag--pulse">
+            {viewMode === "3d" ? "ORBIT · 360°" : "LATERAL · SCHEMA"}
+          </span>
+          <div className="anatomy-viewer__view-toggle" role="group" aria-label="Bone map display mode">
+            <button
+              type="button"
+              className={`anatomy-view-toggle ${viewMode === "2d" ? "is-active" : ""}`}
+              onClick={() => setViewMode("2d")}
+            >
+              2D schema
+            </button>
+            <button
+              type="button"
+              className={`anatomy-view-toggle ${viewMode === "3d" ? "is-active" : ""}`}
+              onClick={() => setViewMode("3d")}
+            >
+              3D orbit
+            </button>
+          </div>
+        </div>
         <h2>Interactive bone map</h2>
         <p className="anatomy-viewer__taxon">{species.binomial}</p>
       </header>
+      {viewMode === "3d" ? (
+        <div
+          className={`anatomy-3d-wrap ${xrayMode ? "is-xray" : ""} ${
+            castStage ? "anatomy-3d-wrap--cast" : ""
+          }`}
+          data-bones-visible={showBones}
+        >
+          <Suspense
+            fallback={
+              <div className="anatomy-3d-wrap__loading" aria-busy="true">
+                Loading 3D viewer…
+              </div>
+            }
+          >
+            <AnatomyViewer3D
+              species={species}
+              activeLayers={activeLayers}
+              selectedBoneId={selectedBoneId}
+              onSelectBone={onSelectBone}
+            />
+          </Suspense>
+        </div>
+      ) : null}
+      {viewMode === "2d" ? (
       <div
         className={`anatomy-svg-wrap ${xrayMode ? "is-xray" : ""}`}
         data-bones-visible={showBones}
@@ -60,7 +100,7 @@ export function AnatomyViewer({ species, activeLayers, selectedBoneId, onSelectB
           className="anatomy-svg"
           viewBox="0 0 420 240"
           role="img"
-          aria-label={`Layered anatomy schematic for ${species.binomial}`}
+          aria-label={`Lateral bone schematic for ${species.binomial}`}
           onClick={handleClick}
         >
           <defs>
@@ -71,47 +111,46 @@ export function AnatomyViewer({ species, activeLayers, selectedBoneId, onSelectB
           </defs>
 
           <g transform={shape.frameTransform}>
-            <g transform={SOFT_FIT_TRANSFORM}>
-              <g className={layerClass(activeLayers, "soft")} pointerEvents="none">
-                {shape.softLayers.map((layerPath, idx) => (
-                  <path key={`soft-${idx}`} className="soft-silhouette" d={layerPath} />
-                ))}
-              </g>
-            </g>
-
-            <g transform={MUSCLE_FIT_TRANSFORM}>
-              <g className={layerClass(activeLayers, "muscle")} pointerEvents="none">
-                {shape.muscles.map((musclePath, idx) => (
-                  <path
-                    key={`muscle-${idx}`}
-                    className={`muscle-block muscle-block--region-${idx + 1}`}
-                    d={musclePath}
-                  />
-                ))}
-              </g>
-            </g>
-
             <g
               className={`anatomy-bones ${showBones ? "is-visible" : "is-hidden"}`}
               style={{ pointerEvents: showBones ? "auto" : "none" }}
             >
               {boneOrder.map((boneId) => (
-                <g
-                  key={boneId}
-                  id={`bone-${boneId}`}
-                  data-bone-id={boneId}
-                  className={`bone-group ${selectedBoneId === boneId ? "is-selected" : ""}`}
-                >
-                  <path d={shape.bones[boneId]} />
+                <g key={boneId}>
+                  <g
+                    id={`bone-${boneId}`}
+                    data-bone-id={boneId}
+                    className={`bone-group ${selectedBoneId === boneId ? "is-selected" : ""}`}
+                  >
+                    <path d={shape.bones[boneId]} />
+                  </g>
+                  {LATERAL_MIRROR_BONE_IDS.includes(boneId) ? (
+                    <g
+                      className="bone-group bone-group--contralateral"
+                      transform={`translate(${SVG_VIEW_WIDTH} 0) scale(-1 1)`}
+                      opacity={0.5}
+                    >
+                      <g
+                        id={`bone-${boneId}-far`}
+                        data-bone-id={boneId}
+                        className={`bone-group ${selectedBoneId === boneId ? "is-selected" : ""}`}
+                      >
+                        <path d={shape.bones[boneId]} />
+                      </g>
+                    </g>
+                  ) : null}
                 </g>
               ))}
             </g>
           </g>
         </svg>
       </div>
+      ) : null}
       <footer className="anatomy-viewer__foot">
         <span>
-          {species.bones.length} clickable bones · osteology and radiograph use the same bone map
+          {viewMode === "3d"
+            ? `${species.bones.length} bones · full 360° orbit · same ids as 2D schematic`
+            : `${species.bones.length} clickable bones · far limbs mirrored in 2D · same ids as 3D where applicable`}
         </span>
       </footer>
     </div>

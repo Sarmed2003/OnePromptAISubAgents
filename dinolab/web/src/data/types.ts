@@ -1,4 +1,5 @@
-export type AnatomyLayer = "skeleton" | "muscle" | "soft" | "xray";
+/** Osteology-first UI: skeleton + optional radiograph styling (no schematic muscle/soft-tissue layers). */
+export type AnatomyLayer = "skeleton" | "xray";
 
 export interface BoneRecord {
   id: string;
@@ -25,4 +26,8 @@ export interface DinosaurSpecies {
   locality: string;
   notes: string;
   bones: BoneRecord[];
+  /**
+   * "cast" = black stage + off-white bone materials in 3D (visual style only; no external specimen copy).
+   */
+  viewerStyle?: "default" | "cast";
 }

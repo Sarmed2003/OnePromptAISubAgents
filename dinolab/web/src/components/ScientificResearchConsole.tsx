@@ -79,7 +79,7 @@ export function ScientificResearchConsole({ open, onClose, species, bone }: Prop
                 <strong>{PROJECT.githubRepo}</strong> alongside the {PROJECT.orchestrator} swarm. Clone the
                 repo, run <code className="research-vercel__code">dinolab/web</code> with{" "}
                 <code className="research-vercel__code">VITE_API_URL</code> pointed at your ask endpoint (e.g.{" "}
-                <code className="research-vercel__code">local_ask_server.py</code> on port 8788) to use the
+                <code className="research-vercel__code">local_ask_server.py</code> on port 8787) to use the
                 full research console with your API keys—never on this public page.
               </p>
             </div>
@@ -191,9 +191,21 @@ export function ScientificResearchConsole({ open, onClose, species, bone }: Prop
         </form>
         {error ? <p className="research-error">{error}</p> : null}
         {answer ? (
-          <section className="research-answer pixel-corners">
-            <h3>Synthesis</h3>
-            <pre className="research-answer__text">{answer}</pre>
+          <section className="research-answer pixel-corners" aria-label="Research synthesis">
+            <div className="research-answer__head">
+              <h3>Synthesis</h3>
+              <span className="research-answer__scroll-hint" title="Full model output is below; scroll to read every section.">
+                Scroll for full detail
+              </span>
+            </div>
+            <div
+              className="research-answer__scroll"
+              tabIndex={0}
+              role="region"
+              aria-label="Synthesis text, scroll for complete answer"
+            >
+              <pre className="research-answer__text">{answer}</pre>
+            </div>
           </section>
         ) : null}
       </div>

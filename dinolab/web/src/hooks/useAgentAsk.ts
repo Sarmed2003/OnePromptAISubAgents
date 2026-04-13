@@ -55,7 +55,7 @@ export function useAgentAsk() {
         msg.toLowerCase().includes("failed to fetch") ||
         msg.toLowerCase().includes("networkerror");
       const friendly = isNetworkFailure
-        ? "Cannot reach research API. Start the local API server (port 8788) or set VITE_API_URL to your live API."
+        ? "Cannot reach research API. Start dinolab/infra local_ask_server.py (default port 8787) and set VITE_API_URL to match, or use your deployed API URL."
         : msg;
       setError(friendly);
       return { answer: "", error: friendly };

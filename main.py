@@ -158,6 +158,8 @@ def cli(
         python main.py "Build a REST API with user auth"
         python main.py --spec examples/example/SPEC.md "Build the project"
         python main.py --dashboard "Build a todo app"
+        python main.py --dashboard
+            # Interactive: shows welcome, then prompts for your task
         python main.py --reset
     """
     from oneprompt.config import WorkerConfig, VaultConfig
@@ -213,16 +215,23 @@ def cli(
         if (prompt or "").strip() and (prompt or "").strip() != "Build the project":
             build_spec = f"# User Prompt\n{prompt}\n\n{build_spec}"
 
-    if not (build_spec or "").strip():
+    if not (build_spec or "").strip() and not dashboard:
         click.echo(
-            "Error: Missing build specification. Provide PROMPT and/or --spec FILE.md",
+            "Error: Missing build specification. Provide PROMPT and/or --spec FILE.md, "
+            "or run with --dashboard alone to type your task interactively.",
             err=True,
         )
         sys.exit(1)
 
     if dashboard:
+        interactive_prompt = not (build_spec or "").strip()
         _run_with_dashboard(
-            config, build_spec, debug, dashboard_auto_exit, dashboard_fullscreen
+            config,
+            build_spec,
+            debug,
+            dashboard_auto_exit,
+            dashboard_fullscreen,
+            interactive_prompt=interactive_prompt,
         )
     else:
         setup_logging("debug" if debug else "info")
@@ -268,12 +277,33 @@ def _run_with_dashboard(
     debug: bool,
     dashboard_auto_exit: bool,
     dashboard_fullscreen: bool,
+    *,
+    interactive_prompt: bool = False,
 ):
     """Run orchestrator in-process, feeding NDJSON events directly to the Rich dashboard."""
     from dashboard import Dashboard
     from rich.live import Live
     from oneprompt.orchestrator import Orchestrator
     from oneprompt.types import NdjsonEvent
+
+    click.echo("")
+    click.secho(
+        "  Welcome to OnePrompt's Swarm System — Let's get started",
+        fg="bright_cyan",
+        bold=True,
+    )
+    click.echo("")
+
+    build_spec = (spec or "").strip()
+    if interactive_prompt:
+        build_spec = click.prompt(
+            "  What should the swarm build?",
+            default="",
+            show_default=False,
+        ).strip()
+        if not build_spec:
+            click.echo("Error: A non-empty task description is required.", err=True)
+            sys.exit(1)
 
     setup_logging("debug" if debug else "warning", to_stderr=True)
 
@@ -288,7 +318,7 @@ def _run_with_dashboard(
 
     async def run_orchestrator():
         try:
-            await orchestrator.run(spec)
+            await orchestrator.run(build_spec)
         except Exception as e:
             dashboard.process_event({
                 "type": "error", "data": {"message": str(e)}

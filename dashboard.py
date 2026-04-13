@@ -25,18 +25,21 @@ from rich.text import Text
 from rich.columns import Columns
 from rich import box
 
+from oneprompt.run_roles import worker_display_role
+
 
 ROLE_STYLES = {
     "planner":    ("bold white",  "Planner"),
     "subplanner": ("dim white",   "SubPlanner"),
     "worker":     ("green",       "Worker"),
+    "engineer":   ("bold green",  "Engineer"),
     "reconciler": ("magenta",     "Reconciler"),
     "architect":  ("bold blue",   "Architect"),
     "reviewer":   ("bold yellow", "Reviewer"),
     "qa_tester":  ("bold magenta","QA Tester"),
     "security":   ("bold red",    "Security"),
     "devops":     ("bold cyan",   "DevOps"),
-    "integrator": ("bold white",  "Integrator"),
+    "integrator": ("bold white",  "Integrator (consolidation)"),
     "bundler":    ("bold white",  "Bundler"),
     "sandbox":    ("bold green",  "Sandbox"),
 }
@@ -125,9 +128,55 @@ class Dashboard:
             else:
                 self._log(f"[dim]LLM · {phase}[/] (still working — workers start after planning)")
 
+        elif etype == "planner_start":
+            rec = AgentRecord(
+                agent_id="w-planner",
+                role="planner",
+                task_id="plan-spec",
+                status="running",
+            )
+            self.agents["w-planner"] = rec
+            self.agents_active = sum(1 for a in self.agents.values() if a.status == "running")
+            self._log("[bold white]Planner[/] decomposing spec into tasks…")
+
         elif etype == "planner_done":
+            pst = data.get("status", "complete")
+            if "w-planner" in self.agents:
+                self.agents["w-planner"].status = (
+                    pst if pst in ("complete", "failed", "error") else "complete"
+                )
+                self.agents["w-planner"].progress = 100
+            self.agents_active = sum(1 for a in self.agents.values() if a.status == "running")
             n = data.get("task_count", 0)
-            self._log(f"[bold green]Planner[/] returned [bold]{n}[/] top-level task(s); subplanner/architect next")
+            if pst == "failed":
+                self._log(f"[bold red]Planner[/] failed — [bold]{n}[/] tasks")
+            else:
+                self._log(
+                    f"[bold green]Planner[/] returned [bold]{n}[/] top-level task(s); "
+                    "subplanner/architect next"
+                )
+
+        elif etype == "subplanner_start":
+            wid = data.get("worker", "?")
+            tid = data.get("task", "?")
+            rec = AgentRecord(agent_id=wid, role="subplanner", task_id=tid, status="running")
+            self.agents[wid] = rec
+            self.agents_active = sum(1 for a in self.agents.values() if a.status == "running")
+            self._log(f"[dim white]SubPlanner[/] {wid} expanding {tid}")
+
+        elif etype == "subplanner_done":
+            wid = data.get("worker", "?")
+            st = data.get("status", "complete")
+            if wid in self.agents:
+                self.agents[wid].status = st if st in ("complete", "error", "failed") else "complete"
+                self.agents[wid].progress = 100
+            self.agents_active = sum(1 for a in self.agents.values() if a.status == "running")
+            cnt = data.get("sub_count", "?")
+            if st == "error":
+                err = (data.get("error") or "")[:120]
+                self._log(f"[red]SubPlanner[/] {wid} error — {err}")
+            else:
+                self._log(f"[dim]SubPlanner[/] {wid} done → {cnt} task(s)")
 
         elif etype == "repo_ready":
             tc = data.get("tree_chars")
@@ -182,13 +231,9 @@ class Dashboard:
         elif etype == "worker_start":
             wid = data.get("worker", "?")
             tid = data.get("task", "?")
-            role = data.get("role", "worker")
-
-            if role == "worker" and not data.get("role"):
-                if "sub" in tid:
-                    role = "subplanner"
-                elif "planner" in wid or tid.count("-") <= 1:
-                    role = "planner"
+            role = (data.get("role") or "").strip() or "worker"
+            if role == "worker":
+                role = worker_display_role(tid)
 
             rec = AgentRecord(agent_id=wid, role=role, task_id=tid, status="running")
             self.agents[wid] = rec
@@ -612,6 +657,7 @@ class Dashboard:
         t.append(f"  {time_str} ", style="bold white")
         t.append("    ")
         t.append(f"{self.agents_active} agents in parallel", style="white")
+        t.append(f"  ·  phase: {self.phase}", style="cyan")
         if self.vault_files:
             t.append(f"  vault: {self.vault_files} docs", style="dim")
 
@@ -759,9 +805,11 @@ class Dashboard:
             pct = "0%"
 
         text.append(prefix)
+        text.append(role_label, style=role_style)
+        text.append(" · ", style="dim")
+        text.append(agent.agent_id, style="dim white")
+        text.append("  ")
         text.append(bar, style=bar_style)
-        text.append(f" {agent.agent_id}", style="bold white")
-        text.append(f" ({role_label})", style=role_style)
         text.append(f" {status_text}", style=bar_style)
         text.append(f" {pct}", style="dim")
         text.append("\n")

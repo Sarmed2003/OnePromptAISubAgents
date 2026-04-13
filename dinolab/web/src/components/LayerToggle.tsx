@@ -2,8 +2,6 @@ import type { AnatomyLayer } from "../data/types";
 
 const LAYERS: { id: AnatomyLayer; label: string; hint: string }[] = [
   { id: "skeleton", label: "Osteology", hint: "Skeletal layer" },
-  { id: "muscle", label: "Myology", hint: "Schematic hypaxial/epaxial blocks" },
-  { id: "soft", label: "Integument", hint: "Body outline / soft-tissue envelope" },
   { id: "xray", label: "Radiograph", hint: "Negative-style density view" },
 ];
 
@@ -14,7 +12,7 @@ interface Props {
 
 export function LayerToggle({ active, onToggle }: Props) {
   return (
-    <div className="layer-toggle" role="group" aria-label="Anatomy layers">
+    <div className="layer-toggle" role="group" aria-label="Display modes">
       {LAYERS.map((L) => (
         <button
           key={L.id}
