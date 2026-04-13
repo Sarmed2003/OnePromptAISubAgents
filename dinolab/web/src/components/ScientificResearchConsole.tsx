@@ -70,7 +70,7 @@ export function ScientificResearchConsole({ open, onClose, species, bone }: Prop
                 {PROJECT.githubRepo} · {hostedHost} · Bedrock Q&amp;A offline on the public web
               </p>
             </div>
-            <button type="button" className="btn-close pixel-corners" onClick={onClose} aria-label="Close">
+            <button type="button" className="btn-close pixel-corners" onClick={onClose} aria-label="Close research console">
               ✕
             </button>
           </header>
@@ -95,9 +95,11 @@ export function ScientificResearchConsole({ open, onClose, species, bone }: Prop
                 readOnly
                 tabIndex={0}
                 placeholder="e.g. What does the femur shape in this species tell us about speed, body weight, and growth as it aged?"
+                aria-describedby="q-vercel-hosted-desc"
               />
+              <p id="q-vercel-hosted-desc" className="research-input__desc">Research questions are coming soon on the public host.</p>
               <div className="research-actions">
-                <button type="button" className="btn-submit btn-submit--vercel-soon pixel-corners" disabled>
+                <button type="button" className="btn-submit btn-submit--vercel-soon pixel-corners" disabled aria-label="Submit research question (disabled)">
                   down for now, up soon!
                 </button>
               </div>
@@ -117,7 +119,7 @@ export function ScientificResearchConsole({ open, onClose, species, bone }: Prop
               <h2 id="research-title">Multi-agent research console</h2>
               <p className="research-modal__sub">Opening soon on this site</p>
             </div>
-            <button type="button" className="btn-close pixel-corners" onClick={onClose} aria-label="Close">
+            <button type="button" className="btn-close pixel-corners" onClick={onClose} aria-label="Close research console">
               ✕
             </button>
           </header>
@@ -129,7 +131,17 @@ export function ScientificResearchConsole({ open, onClose, species, bone }: Prop
             </p>
           </div>
           <div className="research-coming-soon research-coming-soon--text-only">
-            <p className="research-coming-soon__msg">The research console will be up and running soon!</p>
+            <img
+              src="/research-mascot.png"
+              alt="Friendly research mascot"
+              className="research-coming-soon__mascot"
+            />
+            <p className="research-coming-soon__msg">
+              The research console will be up and running soon! Our expert-powered Q&amp;A system is being prepared to help you explore the science behind these amazing dinosaurs.
+            </p>
+            <p className="research-coming-soon__subtext">
+              In the meantime, explore the fossils and learn more about {species.binomial}.
+            </p>
           </div>
         </div>
       </div>
@@ -148,7 +160,7 @@ export function ScientificResearchConsole({ open, onClose, species, bone }: Prop
                 : "Research service not connected"}
             </p>
           </div>
-          <button type="button" className="btn-close pixel-corners" onClick={onClose} aria-label="Close">
+          <button type="button" className="btn-close pixel-corners" onClick={onClose} aria-label="Close research console">
             ✕
           </button>
         </header>
@@ -159,7 +171,7 @@ export function ScientificResearchConsole({ open, onClose, species, bone }: Prop
             {bone ? ` · ${bone.scientificName}` : ""}
           </p>
         </div>
-        <form className="research-form" onSubmit={handleSubmit}>
+        <form className="research-form" onSubmit={handleSubmit} aria-label="Submit research question">
           <label htmlFor="q">Research question (college level, beginner-friendly)</label>
           <textarea
             id="q"
@@ -168,14 +180,31 @@ export function ScientificResearchConsole({ open, onClose, species, bone }: Prop
             value={question}
             onChange={(e) => setQuestion(e.target.value)}
             placeholder="e.g. What does the femur shape in this species tell us about speed, body weight, and growth as it aged?"
+            aria-describedby="q-help"
+            disabled={!hasApi}
           />
+          {!hasApi && (
+            <p id="q-help" className="research-input__help">
+              Research service is not available. Please check your configuration.
+            </p>
+          )}
           <div className="research-actions">
-            <button type="submit" className="btn-submit pixel-corners" disabled={loading || !hasApi}>
+            <button
+              type="submit"
+              className="btn-submit pixel-corners"
+              disabled={loading || !hasApi || !question.trim()}
+              aria-label={loading ? "Invoking model, please wait" : "Submit question to Bedrock agent"}
+            >
               {loading ? "Invoking model…" : "Submit to Bedrock agent"}
             </button>
           </div>
         </form>
-        {error ? <p className="research-error">{error}</p> : null}
+        {error ? (
+          <section className="research-error" role="alert" aria-labelledby="error-title">
+            <h3 id="error-title" className="research-error__title">Error</h3>
+            <p className="research-error__msg">{error}</p>
+          </section>
+        ) : null}
         {answer ? (
           <section className="research-answer pixel-corners" aria-label="Research synthesis">
             <div className="research-answer__head">
