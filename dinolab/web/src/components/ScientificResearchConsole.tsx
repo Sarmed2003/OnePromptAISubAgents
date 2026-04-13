@@ -96,7 +96,6 @@ export function ScientificResearchConsole({ open, onClose, species, bone }: Prop
                 readOnly
                 tabIndex={0}
                 placeholder="e.g. What does the femur shape in this species tell us about speed, body weight, and growth as it aged?"
-                aria-label="Research question; submissions are disabled on this public host"
               />
               <div className="research-actions">
                 <button type="button" className="btn-submit btn-submit--vercel-soon pixel-corners" disabled>
