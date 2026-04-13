@@ -6,7 +6,10 @@ function isVercelProductionHost(): boolean {
   return import.meta.env.PROD && /\.vercel\.app$/i.test(window.location.hostname);
 }
 
-/** True on public *.vercel.app build where we show the slim profile-only console (not local dev). */
+/**
+ * True on public *.vercel.app build where we show the slim profile-only console (not local dev).
+ * This indicates Vercel-hosted research UI should be shown instead of the full console.
+ */
 export function isVercelHostedResearchUI(): boolean {
   return (
     isVercelProductionHost() && import.meta.env.VITE_ALLOW_VERCEL_RESEARCH !== "true"
@@ -26,4 +29,13 @@ export function isResearchComingSoon(): boolean {
   }
   if (import.meta.env.VITE_RESEARCH_COMING_SOON === "true") return true;
   return false;
+}
+
+/**
+ * Checks if the research API is available by verifying VITE_RESEARCH_API_URL is set.
+ * Returns true if the URL is defined and non-empty, false otherwise.
+ */
+export function isResearchApiAvailable(): boolean {
+  const url = import.meta.env.VITE_RESEARCH_API_URL as string | undefined;
+  return url !== undefined && url.length > 0;
 }
