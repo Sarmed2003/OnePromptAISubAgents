@@ -3,7 +3,7 @@ import type { BoneRecord, DinosaurSpecies } from "../data/types";
 import { isResearchComingSoon, isVercelHostedResearchUI } from "../config";
 import { useAgentAsk } from "../hooks/useAgentAsk";
 import { PROJECT } from "../project";
-import locoMascotUrl from "../assets/loco-mascot.png";
+import dinolabMascotLogoUrl from "../assets/dinolab-mascot-logo.png";
 import researchMascotUrl from "../assets/research-mascot.png";
 
 interface Props {
@@ -83,11 +83,11 @@ export function ScientificResearchConsole({ open, onClose, species, bone }: Prop
                 full research console with your API keys—never on this public page.
               </p>
             </div>
-            <div className="research-vercel__mascot-wrap">
+            <div className="research-vercel__mascot-wrap research-vercel__mascot-wrap--logo">
               <img
-                className="research-vercel__loco"
-                src={locoMascotUrl}
-                alt="Loco, pixel-art dinosaur with a small rider mascot"
+                className="research-vercel__logo"
+                src={dinolabMascotLogoUrl}
+                alt="DINOLAB mascot — pixel-art dinosaur and rider logo"
               />
             </div>
           </div>
