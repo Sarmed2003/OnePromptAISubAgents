@@ -7,8 +7,10 @@ import {
   type Group,
   type Mesh,
   Quaternion,
+  Raycaster,
   RepeatWrapping,
   SRGBColorSpace,
+  Vector2,
   Vector3,
 } from "three";
 import { createOrganicBoneGeometry } from "../data/boneOrganicGeometry";
@@ -370,12 +372,13 @@ function SpecimenReferenceBackdrop() {
 }
 
 function RigContent(props: Props) {
-  const { gl } = useThree();
+  const { gl, camera } = useThree();
   const castStage = props.species.viewerStyle === "cast";
   const fossilRoughness = useFossilRoughnessMap();
   const castRoughness = useMuseumCastRoughnessMap();
   const roughnessMap = castStage ? castRoughness : fossilRoughness;
   const [hoveredKey, setHoveredKey] = useState<string | null>(null);
+  const [isGeometryLoading, setIsGeometryLoading] = useState(true);
 
   const onBonePointerOver = (key: string) => setHoveredKey(key);
   const onBonePointerOut = (key: string) =>
@@ -387,6 +390,7 @@ function RigContent(props: Props) {
     el.addEventListener("pointerleave", leave);
     return () => el.removeEventListener("pointerleave", leave);
   }, [gl]);
+
   const showBones = props.activeLayers.has("skeleton") || props.activeLayers.has("xray");
   const xrayMode = props.activeLayers.has("xray");
   const fossilLook = showBones && !xrayMode;
@@ -398,7 +402,15 @@ function RigContent(props: Props) {
     }
     return buildTheropodHighFidelityRenderList(props.species.id);
   }, [props.species.id]);
+
   const rootRef = useRef<Group>(null);
+  const meshMapRef = useRef<Map<string, Mesh>>(new Map());
+
+  useEffect(() => {
+    if (showBones) {
+      setIsGeometryLoading(false);
+    }
+  }, [showBones]);
 
   useEffect(() => {
     gl.toneMappingExposure = fossilLook ? (castStage ? 1.12 : 1.05) : 1;
@@ -472,6 +484,13 @@ function RigContent(props: Props) {
 
 function Scene(props: Props) {
   const castStage = props.species.viewerStyle === "cast";
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setIsLoading(false), 100);
+    return () => clearTimeout(timer);
+  }, [props.species.id]);
+
   return (
     <>
       <color attach="background" args={[castStage ? "#000000" : "#0b0d10"]} />
@@ -503,7 +522,7 @@ function Scene(props: Props) {
           preset={castStage ? "studio" : "warehouse"}
           environmentIntensity={castStage ? 0.7 : 0.45}
         />
-        <RigContent {...props} />
+        {!isLoading && <RigContent {...props} />}
       </Suspense>
       <OrbitControls
         makeDefault
@@ -523,12 +542,32 @@ function Scene(props: Props) {
 }
 
 export function AnatomyViewer3D(props: Props) {
+  const [isCanvasReady, setIsCanvasReady] = useState(false);
+
   return (
     <div
       className="anatomy-viewer-3d anatomy-viewer-3d--specimen"
       role="img"
       aria-label={`3D specimen skeleton for ${props.species.binomial}. Full spherical orbit.`}
     >
+      {!isCanvasReady && (
+        <div
+          className="anatomy-viewer-3d__loading"
+          style={{
+            position: "absolute",
+            inset: 0,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            backgroundColor: "rgba(11, 13, 16, 0.8)",
+            zIndex: 10,
+            fontSize: "14px",
+            color: "#c4b8a8",
+          }}
+        >
+          Loading 3D skeleton…
+        </div>
+      )}
       <Canvas
         shadows
         className="anatomy-viewer-3d__canvas"
@@ -537,6 +576,7 @@ export function AnatomyViewer3D(props: Props) {
         onPointerMissed={() => {
           document.body.style.cursor = "";
         }}
+        onCreated={() => setIsCanvasReady(true)}
       >
         <Scene {...props} />
       </Canvas>
