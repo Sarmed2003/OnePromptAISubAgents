@@ -1,4 +1,4 @@
-"""Multi-provider LLM: AWS Bedrock (primary), Gemini, Ollama (fallback)."""
+"""Multi-provider LLM: AWS Bedrock or local Ollama (optional Bedrock→Ollama fallback on throttle)."""
 
 from __future__ import annotations
 
@@ -40,7 +40,7 @@ def _find_json_string_end(text: str, start: int) -> int:
 
 
 class LLMClient:
-    """Unified LLM interface: Bedrock Converse, Gemini, or Ollama.
+    """Unified LLM interface: Bedrock Converse or Ollama HTTP API.
 
     Bedrock: AWS retired the old Model access page; access is automatic with
     correct IAM/Marketplace permissions. Anthropic models need a one-time FTU
@@ -56,17 +56,9 @@ class LLMClient:
         self.config = config
         self.total_tokens = 0
         self._request_count = 0
-        self._gemini_client = None
         self._bedrock_client = None
         self._ollama_available: bool | None = None
         self._ollama_session: aiohttp.ClientSession | None = None
-
-        if config.provider == "gemini":
-            try:
-                from google import genai
-                self._gemini_client = genai.Client(api_key=config.api_key)
-            except Exception as e:
-                logger.warning("Gemini client init failed: %s", e)
 
         if config.provider == "bedrock":
             self._bedrock_client = self._make_bedrock_client()
@@ -124,13 +116,9 @@ class LLMClient:
                     return await self._generate_ollama(system_prompt, user_prompt, response_format)
                 raise
 
-        try:
-            return await self._generate_gemini(system_prompt, user_prompt, response_format)
-        except Exception as e:
-            if self.config.fallback_to_ollama and self._is_cloud_throttle(e):
-                logger.warning("Gemini rate-limited — falling back to Ollama")
-                return await self._generate_ollama(system_prompt, user_prompt, response_format)
-            raise
+        raise ValueError(
+            f"Unknown LLM_PROVIDER {self.config.provider!r}; use bedrock or ollama."
+        )
 
     # ------------------------------------------------------------------
     # AWS Bedrock (Converse API)
@@ -286,62 +274,6 @@ class LLMClient:
         return "ThrottlingException" in s or "TooManyRequests" in s
 
     # ------------------------------------------------------------------
-    # Gemini backend
-    # ------------------------------------------------------------------
-
-    async def _generate_gemini(
-        self,
-        system_prompt: str,
-        user_prompt: str,
-        response_format: str = "text",
-    ) -> str:
-        from google.genai import types
-
-        if self._gemini_client is None:
-            from google import genai
-            self._gemini_client = genai.Client(api_key=self.config.api_key)
-
-        last_err = None
-        for attempt in range(MAX_RETRIES):
-            try:
-                self._request_count += 1
-                config = types.GenerateContentConfig(
-                    system_instruction=system_prompt,
-                    temperature=self.config.temperature,
-                    max_output_tokens=self.config.max_tokens,
-                    response_mime_type=(
-                        "application/json" if response_format == "json" else "text/plain"
-                    ),
-                )
-                response = await asyncio.to_thread(
-                    self._gemini_client.models.generate_content,
-                    model=self.config.model,
-                    contents=user_prompt,
-                    config=config,
-                )
-
-                if response.usage_metadata:
-                    self.total_tokens += response.usage_metadata.total_token_count or 0
-
-                return response.text or ""
-
-            except Exception as e:
-                last_err = e
-                if self._is_gemini_rate_limit(e):
-                    wait = self._parse_retry_delay(e, attempt)
-                    logger.warning(
-                        "Gemini rate-limited (attempt %d/%d). Waiting %.0fs...",
-                        attempt + 1, MAX_RETRIES, wait,
-                    )
-                    await asyncio.sleep(wait)
-                    continue
-                logger.error("Gemini API error: %s", e)
-                raise
-
-        logger.error("All %d Gemini retries exhausted. Last error: %s", MAX_RETRIES, last_err)
-        raise last_err  # type: ignore[misc]
-
-    # ------------------------------------------------------------------
     # Ollama backend
     # ------------------------------------------------------------------
 
@@ -387,14 +319,7 @@ class LLMClient:
     # ------------------------------------------------------------------
 
     @staticmethod
-    def _is_gemini_rate_limit(err: Exception) -> bool:
-        s = str(err)
-        return "429" in s or "RESOURCE_EXHAUSTED" in s
-
-    @staticmethod
     def _is_cloud_throttle(err: Exception) -> bool:
-        if LLMClient._is_gemini_rate_limit(err):
-            return True
         return LLMClient._is_bedrock_throttle(err)
 
     @staticmethod

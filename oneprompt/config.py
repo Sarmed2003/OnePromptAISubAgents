@@ -13,9 +13,7 @@ load_dotenv()
 
 @dataclass(frozen=True)
 class LLMConfig:
-    provider: str = "gemini"
-    api_key: str = ""
-    model: str = "gemini-2.0-flash"
+    provider: str = "bedrock"
     temperature: float = 0.7
     max_tokens: int = 8192
     ollama_url: str = "http://localhost:11434"
@@ -32,9 +30,7 @@ class LLMConfig:
     @classmethod
     def from_env(cls) -> LLMConfig:
         return cls(
-            provider=os.getenv("LLM_PROVIDER", "gemini"),
-            api_key=os.getenv("GEMINI_API_KEY", ""),
-            model=os.getenv("GEMINI_MODEL", "gemini-2.0-flash"),
+            provider=os.getenv("LLM_PROVIDER", "bedrock").lower().strip(),
             temperature=float(os.getenv("LLM_TEMPERATURE", "0.7")),
             max_tokens=int(os.getenv("LLM_MAX_TOKENS", "8192")),
             ollama_url=os.getenv("OLLAMA_URL", "http://localhost:11434"),
@@ -229,8 +225,8 @@ class AppConfig:
     def validate(self) -> list[str]:
         errors: list[str] = []
         prov = (self.llm.provider or "").lower().strip()
-        if prov == "gemini" and not self.llm.api_key:
-            errors.append("GEMINI_API_KEY is required when LLM_PROVIDER=gemini")
+        if prov not in ("bedrock", "ollama"):
+            errors.append("LLM_PROVIDER must be bedrock or ollama")
         if prov == "bedrock" and not (self.llm.bedrock_model_id or "").strip():
             errors.append("BEDROCK_MODEL_ID is required when LLM_PROVIDER=bedrock")
         if prov == "ollama" and not (self.llm.ollama_model or "").strip():

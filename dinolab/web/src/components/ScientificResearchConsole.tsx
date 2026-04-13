@@ -3,8 +3,10 @@ import type { BoneRecord, DinosaurSpecies } from "../data/types";
 import { isResearchComingSoon, isVercelHostedResearchUI } from "../config";
 import { useAgentAsk } from "../hooks/useAgentAsk";
 import { PROJECT } from "../project";
-import dinolabMascotLogoUrl from "../assets/dinolab-mascot-logo.png";
 import researchMascotUrl from "../assets/research-mascot.png";
+
+/** Served from `public/mascots/` so production (Vercel) always gets a stable URL, not only a bundled import. */
+const DINOLAB_HOSTED_LOGO = `${import.meta.env.BASE_URL}mascots/dinolab-mascot-logo.png`;
 
 interface Props {
   open: boolean;
@@ -86,7 +88,7 @@ export function ScientificResearchConsole({ open, onClose, species, bone }: Prop
             <div className="research-vercel__mascot-wrap research-vercel__mascot-wrap--logo">
               <img
                 className="research-vercel__logo"
-                src={dinolabMascotLogoUrl}
+                src={DINOLAB_HOSTED_LOGO}
                 alt="DINOLAB mascot — pixel-art dinosaur and rider logo"
               />
             </div>

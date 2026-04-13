@@ -32,4 +32,4 @@ Top-level directories are read in this order when building context: **`memory/`*
 
 **Not used by application code:** **EC2** (README mentions it only as an optional hackathon idea for remote workers). There is no `boto3` EC2 client in the repo.
 
-**S3 “why / why not” (orchestrator):** The multi-agent runner talks to **Git**, **Bedrock/Gemini/Ollama**, and **DynamoDB/Mongo/memory**. It does **not** upload artifacts to S3. S3 appears in the **DINOLAB** deployment path for hosting the web build and optional assets.
+**S3 “why / why not” (orchestrator):** The multi-agent runner talks to **Git**, **Bedrock or Ollama**, and **DynamoDB/Mongo/memory**. It does **not** upload artifacts to S3. S3 appears in the **DINOLAB** deployment path for hosting the web build and optional assets.

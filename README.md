@@ -27,7 +27,7 @@
 |--------|------------|--------------|--------|
 | CLI | **Click** | Args, optional interactive dashboard prompt | Simple entrypoint; `python main.py --dashboard` can prompt after welcome |
 | Orchestration | **Python 3.11+, asyncio** | Phases, worker pool, merge queue | Single-machine swarm without Kubernetes |
-| LLM | **Bedrock / Gemini / Ollama** (`LLM_CLIENT`) | Planner, subplanner, workers, reconciler, SDLC phases | Pick cloud vs local; Bedrock fits AWS-centric teams |
+| LLM | **Bedrock / Ollama** (`LLM_CLIENT`) | Planner, subplanner, workers, reconciler, SDLC phases | Cloud (AWS) or local models; optional Bedrock→Ollama fallback on throttle |
 | Persistence | **DynamoDB** (default), **MongoDB**, or **memory** | Tasks, events, run metrics | **DynamoDB** + **boto3**: durable state without running a DB server |
 | Git | **GitPython**, remote **GitHub** | Clone target repo, branches, commits, merge | Isolation per worker via branches/worktrees |
 | Isolation | **Git worktrees** (`sandbox.py`) | Separate working trees per worker | Avoids file clashes while coding |
@@ -96,7 +96,7 @@ Open the URL Vite prints (e.g. `http://localhost:5173`). The research panel call
 1. **Fork or clone** OnePromptAI.
 2. **Create an empty (or template) GitHub repo** for generated code; set `GIT_REPO_URL` and `GIT_TOKEN` in `.env`.
 3. Set **`TARGET_REPO_PATH`** (local clone path, e.g. `./target-repo`).
-4. Choose **`LLM_PROVIDER`** and keys (**Gemini**, **Bedrock**, or **Ollama**).
+4. Choose **`LLM_PROVIDER`** (**Bedrock** or **Ollama**) and matching AWS or local settings.
 5. Choose **`DB_BACKEND`** (`memory` for a quick try without AWS; `dynamodb` for persistence).
 6. Optionally add **`vault/`** markdown (or open the same folder in **Obsidian**) for planner/architect context — see `vault/OBSIDIAN.md`.
 7. Run **`python main.py --dashboard`** and enter your prompt.
@@ -109,7 +109,7 @@ You do **not** have to use DINOLAB; point `GIT_REPO_URL` at any repo the swarm s
 
 | Variable | Role |
 |----------|------|
-| `LLM_PROVIDER` | `bedrock` \| `gemini` \| `ollama` |
+| `LLM_PROVIDER` | `bedrock` \| `ollama` |
 | `GIT_REPO_URL` / `GIT_TOKEN` | Target repository |
 | `MAX_WORKERS` | Parallel workers (typical 3–5 on a laptop) |
 | `DB_BACKEND` | `dynamodb` \| `mongodb` \| `memory` |
