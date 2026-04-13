@@ -3,7 +3,6 @@ import type { BoneRecord, DinosaurSpecies } from "../data/types";
 import { isResearchComingSoon, isVercelHostedResearchUI } from "../config";
 import { useAgentAsk } from "../hooks/useAgentAsk";
 import { PROJECT } from "../project";
-import researchMascotUrl from "../assets/research-mascot.png";
 
 interface Props {
   open: boolean;
@@ -129,12 +128,7 @@ export function ScientificResearchConsole({ open, onClose, species, bone }: Prop
               {bone ? ` · ${bone.scientificName}` : ""}
             </p>
           </div>
-          <div className="research-coming-soon">
-            <img
-              className="research-coming-soon__mascot"
-              src={researchMascotUrl}
-              alt="Pixel-art dinosaur with a small coding companion"
-            />
+          <div className="research-coming-soon research-coming-soon--text-only">
             <p className="research-coming-soon__msg">The research console will be up and running soon!</p>
           </div>
         </div>

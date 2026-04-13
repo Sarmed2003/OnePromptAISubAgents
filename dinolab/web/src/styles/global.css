@@ -907,12 +907,8 @@ body {
   gap: 1rem;
 }
 
-.research-coming-soon__mascot {
-  width: min(200px, 55vw);
-  height: auto;
-  image-rendering: pixelated;
-  image-rendering: crisp-edges;
-  filter: drop-shadow(0 0 12px rgba(120, 255, 200, 0.15));
+.research-coming-soon--text-only {
+  padding-top: 0.5rem;
 }
 
 .research-coming-soon__msg {
@@ -921,7 +917,8 @@ body {
   font-size: 1rem;
   line-height: 1.45;
   color: var(--text);
-  max-width: 28ch;
+  max-width: 36ch;
+  text-align: center;
 }
 
 .research-modal__head {
