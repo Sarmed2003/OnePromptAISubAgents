@@ -1,24 +1,24 @@
 # Deployment Decision Guide
 
-Welcome! This guide helps you decide whether your website is ready to go live. Follow the checklist and decision tree below to determine your next steps.
+Welcome! This guide helps you decide whether your website is ready to go live. It clearly separates **local testing** from **live deployment** and gives you a friendly yes/no decision point before any publishing happens.
 
 ---
 
-## 1. Are You Ready to Publish? — Pre-Deployment Checklist
+## 1. Local Build & Testing — Pre-Deployment Checklist
 
 Before considering deployment, verify that all of the following are true:
 
+- [ ] **Local build succeeds**: Your production build completes without errors (`npm run build` or equivalent)
 - [ ] **Local tests pass**: Run your test suite locally and confirm all tests pass without failures
 - [ ] **No console errors**: Open your website in the browser and check the console (F12 → Console tab) for any errors or warnings
 - [ ] **Manual testing complete**: You've tested the main user flows (navigation, forms, interactions) locally
 - [ ] **Team review done**: At least one team member has reviewed your code changes
-- [ ] **Build succeeds**: Your production build completes without errors (`npm run build` or equivalent)
 - [ ] **No sensitive data exposed**: Verify no API keys, passwords, or secrets are hardcoded in the code
 - [ ] **Performance acceptable**: Page load times and interactions feel responsive
 
 ---
 
-## 2. Decision Tree
+## 2. Local Testing Flow
 
 ### Quick Reference Flowchart
 
@@ -33,28 +33,32 @@ Before considering deployment, verify that all of the following are true:
         │                 │
         ▼                 ▼
    ┌─────────────┐  ┌──────────────────────┐
-   │ CONTINUE    │  │ READY TO DEPLOY      │
-   │ LOCAL DEV   │  │ See DEPLOY_GUIDE.md  │
+   │ CONTINUE    │  │ LOCAL TESTING        │
+   │ LOCAL DEV   │  │ COMPLETE ✓           │
+   │             │  │                      │
+   │ Fix issues &│  │ Ready to decide on   │
+   │ iterate     │  │ live deployment      │
    └─────────────┘  └──────────────────────┘
         │                 │
         ▼                 ▼
-   Fix issues &     Follow deployment
-   iterate          steps in dinolab/infra/
-                    DEPLOY_GUIDE.md
+   Re-test        ┌──────────────────────┐
+   locally        │ DECISION POINT:      │
+                  │ "Publish live?"      │
+                  └──────────────────────┘
 ```
 
 ### Decision Table
 
-| Checklist Status | Decision | Next Action |
+| Checklist Status | Status Indicator | Next Action |
 |---|---|---|
-| ❌ Any item unchecked | **NOT READY** | Return to local development. Fix failing tests, resolve console errors, get team review, or optimize performance. |
-| ✅ All items checked | **READY** | Proceed to deployment. Read `dinolab/infra/DEPLOY_GUIDE.md` for step-by-step instructions. |
+| ❌ Any item unchecked | **🔴 NOT READY** | Return to local development. Fix failing tests, resolve console errors, get team review, or optimize performance. |
+| ✅ All items checked | **🟢 READY FOR DECISION** | Proceed to the "Publish live?" decision point below. |
 
 ---
 
 ## 3. If NO — Continue Local Development
 
-If you checked the list above and found items that are not yet complete, **do not deploy**. Instead:
+If you checked the list above and found items that are not yet complete, **do not proceed**. Instead:
 
 1. **Identify the gaps**: Which checklist items are not yet done?
 2. **Fix them locally**: 
@@ -69,36 +73,83 @@ If you checked the list above and found items that are not yet complete, **do no
 
 ---
 
-## 4. If YES — Ready to Deploy
+## 4. Decision Point: "Do You Want to Publish Live?"
 
-If all checklist items are complete, you're ready to publish the website live.
+Once all checklist items are complete and you've tested everything locally, you're at a decision point:
+
+### ❓ **Do you want to publish the website live now?**
+
+- **If NO**: That's fine! Your code is working locally. You can come back to this decision anytime you're ready to deploy. There is **no automatic publishing**—deployment only happens when you explicitly choose to do so.
+- **If YES**: Continue to the optional deployment steps below.
+
+---
+
+## 5. If YES — Optional Deployment Steps
+
+If you've decided to publish live, follow these optional deployment steps. **Note:** Only `dinolab/web/` is the public website that users will see.
 
 ### Important Context
 
 **Only `dinolab/web/` is the public website.** This directory contains all the code that users will see and interact with when they visit your live site. Other directories in the dinolab project (like `dinolab/infra/` or `dinolab/api/`) may contain infrastructure, backend services, or documentation—but they are not directly visible to end users.
 
-### Next Steps
+### Deployment Status Indicators
 
-1. **Read the deployment guide**: Open `dinolab/infra/DEPLOY_GUIDE.md`
-2. **Follow the steps**: The deployment guide contains detailed, step-by-step instructions for publishing your website
-3. **Have your changes merged**: Ensure your code is merged to the main branch (or the branch designated for production)
-4. **Execute the deployment**: Follow the exact steps in `DEPLOY_GUIDE.md` to push your changes live
-5. **Verify live**: After deployment, visit your live website and confirm everything works as expected
+- **🔴 NOT DEPLOYED**: Your code is working locally but has not been published to a live hosting service.
+- **🟢 DEPLOYED**: Your code has been published to a live hosting service (e.g., Vercel) and is accessible to users.
+
+### Optional Steps to Deploy to Vercel or Hosting Service
+
+If you want to deploy `dinolab/web/` to a live hosting service, follow these steps:
+
+1. **Ensure your code is merged**: Make sure your changes are merged to the main branch (or the branch designated for production deployment)
+
+2. **Choose your hosting service**: Common options include:
+   - **Vercel** (recommended for Next.js/React projects)
+   - **Netlify** (good for static sites and modern frameworks)
+   - **Other services**: AWS, GitHub Pages, Firebase Hosting, etc.
+
+3. **Connect your repository**: 
+   - Link your GitHub/GitLab repository to your hosting service
+   - Authorize the hosting service to access your code
+
+4. **Configure environment variables**: 
+   - Set any required environment variables in your hosting service's dashboard
+   - Ensure no sensitive data (API keys, secrets) are exposed
+
+5. **Deploy**:
+   - Trigger a deployment from your hosting service dashboard, or
+   - Push to your main branch (many services auto-deploy on push)
+
+6. **Verify live**: 
+   - Visit your live URL
+   - Test the main user flows to ensure everything works
+   - Check browser console for any errors
+
+### Need Help?
+
+For detailed deployment instructions specific to your hosting service, consult:
+- **Vercel Documentation**: https://vercel.com/docs
+- **Netlify Documentation**: https://docs.netlify.com
+- **Your team's deployment guide**: Ask your team lead for specific instructions
 
 ---
 
-## Final Question
+## Summary
 
-**Do you want to publish the website live now?**
+**Your deployment workflow:**
 
-- **If YES**: All your checklist items are ✅ complete. Read `dinolab/infra/DEPLOY_GUIDE.md` and follow the deployment steps.
-- **If NO**: Return to local development. Fix any remaining issues, re-test, and come back to this guide when you're ready.
+1. ✅ **Local Build & Test**: Complete all checklist items locally
+2. ❓ **Decision Point**: Ask "Do you want to publish live?"
+3. 🔴 **NOT DEPLOYED**: If no, you're done for now (no automatic publishing)
+4. 🟢 **DEPLOYED**: If yes, follow optional deployment steps above
+
+**Remember:** There is no assumption of automatic publishing. Deployment only happens when you explicitly choose it.
 
 ---
 
 ## Quick Links
 
-- **Deployment Instructions**: See `dinolab/infra/DEPLOY_GUIDE.md`
 - **Questions?**: Ask your team lead or check the project documentation
+- **Hosting Services**: Vercel, Netlify, AWS, Firebase Hosting, etc.
 
 Good luck! 🚀
