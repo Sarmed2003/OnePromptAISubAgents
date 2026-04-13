@@ -1,6 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "buildCommand": "cd dinolab/web && npm ci && npm run build",
-  "outputDirectory": "dinolab/web/dist",
-  "installCommand": "cd dinolab/web && npm ci"
+  "framework": null,
+  "installCommand": "cd dinolab/web && npm ci",
+  "buildCommand": "cd dinolab/web && npm run build",
+  "outputDirectory": "dinolab/web/dist"
 }
