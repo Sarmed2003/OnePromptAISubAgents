@@ -1,6 +1,92 @@
 # Build Progress & Live Development with Vite
 
-This guide explains how to use the Vite dev server during development and how to see build progress in real-time.
+This guide explains how to use the Vite dev server during development, track build progress in real-time, and understand the current CI/CD integration status.
+
+## Status Dashboard
+
+### Completed Features
+
+| Feature | Status | Notes |
+|---------|--------|-------|
+| **Dev Server** | ✅ Complete | Vite dev server running on port 5173 with auto-reload |
+| **Hot Module Replacement (HMR)** | ✅ Complete | Live updates without full page reload; state preserved |
+| **Production Build** | ✅ Complete | `npm run build` generates optimized dist/ output |
+| **Unit Tests** | ✅ Complete | Vitest configured; run with `npm run test` |
+| **Smoke Tests** | ✅ Complete | smoke-test.sh validates dev server startup and build output |
+| **CI Workflow** | ✅ Complete | GitHub Actions workflow configured; runs on push/PR |
+
+### In Progress / Planned
+
+- Enhanced test coverage reporting
+- E2E test integration (Playwright/Cypress)
+- Performance benchmarking in CI
+- Automated lighthouse audits
+
+### CI/CD Workflow Status
+
+**GitHub Actions Workflow:** `.github/workflows/ci.yml`
+
+The CI pipeline runs on every push and pull request:
+1. **Install dependencies** — `npm ci`
+2. **Run unit tests** — `npm run test` (Vitest)
+3. **Run smoke tests** — `./smoke-test.sh` (validates dev server and build)
+4. **Build for production** — `npm run build`
+5. **Verify build output** — checks dist/ directory exists and contains expected files
+
+**Current Status:** All workflows passing. See [Actions](../../actions) for latest run details.
+
+---
+
+## Smoke Test Verification
+
+### What smoke-test.sh Does
+
+The smoke test script (`./smoke-test.sh`) performs critical validation:
+
+1. **Dev Server Startup** — Verifies Vite dev server starts and responds on http://localhost:5173
+2. **Build Compilation** — Runs `npm run build` and confirms dist/ directory is created
+3. **Output Validation** — Checks that essential files exist in dist/ (index.html, CSS, JS bundles)
+4. **Error Detection** — Fails fast if any step encounters errors
+
+### Running Smoke Tests Locally
+
+```bash
+cd dinolab/web
+./smoke-test.sh
+```
+
+**Expected Output:**
+```
+✓ Dev server started successfully
+✓ Build completed successfully
+✓ dist/ directory contains expected files
+✓ All smoke tests passed
+```
+
+### What's Verified & Tested
+
+**Development Environment:**
+- ✅ Vite dev server starts without errors
+- ✅ HMR WebSocket connection established
+- ✅ File watching and change detection working
+- ✅ TypeScript compilation successful
+- ✅ No console errors or warnings during startup
+
+**Production Build:**
+- ✅ Build completes without errors
+- ✅ dist/ directory created with all necessary files
+- ✅ index.html generated correctly
+- ✅ CSS and JavaScript bundles created and minified
+- ✅ Source maps generated (if configured)
+- ✅ No build warnings or errors
+
+**Testing:**
+- ✅ Unit tests run with Vitest
+- ✅ Test files located in `src/**/*.test.ts(x)`
+- ✅ All tests pass before CI approval
+- ✅ Coverage reports generated
+
+---
 
 ## Quick Start
 
@@ -156,11 +242,29 @@ Edit your source files in your editor. Vite watches for changes automatically.
 
 Your browser updates automatically via HMR. No manual refresh needed.
 
-### 5. Fix Errors
+### 5. Run Tests
+
+```bash
+npm run test
+```
+
+Tests run in watch mode during development. Fix any test failures before committing.
+
+### 6. Fix Errors
 
 If there's an error, fix it in your editor and save. The error overlay in the browser will clear.
 
-### 6. Stop the Server
+### 7. Build for Production
+
+When ready to deploy:
+
+```bash
+npm run build
+```
+
+This creates an optimized dist/ directory ready for deployment.
+
+### 8. Stop the Server
 
 Press `Ctrl+C` in the terminal to stop the dev server.
 
@@ -206,6 +310,7 @@ If you see a warning about WebSocket connection:
 - **Use specific imports** — avoid importing entire modules if you only need one function
 - **Organize your code** — smaller, focused files compile faster
 - **Monitor terminal output** — watch for compilation times; if they're slow, look for issues in your code
+- **Run tests regularly** — catch issues early in development
 
 ## Summary
 
@@ -215,7 +320,10 @@ If you see a warning about WebSocket connection:
 | View app | Open `http://localhost:5173/` |
 | See changes | Save a file; HMR updates the browser |
 | Check errors | Look at terminal output and browser overlay |
+| Run tests | `npm run test` |
+| Build for prod | `npm run build` |
+| Run smoke tests | `./smoke-test.sh` |
 | Clear cache | `rm -rf node_modules/.vite` |
 | Stop server | Press `Ctrl+C` in terminal |
 
-The Vite dev server is designed for a fast, smooth development experience. With HMR, you'll see changes instantly and keep your app state intact between edits.
+The Vite dev server is designed for a fast, smooth development experience. With HMR, you'll see changes instantly and keep your app state intact between edits. All features are verified through automated testing and CI/CD workflows.
