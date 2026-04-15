@@ -190,13 +190,6 @@ OnePromptAI/
 - **Port in use** (DINOLAB API): `lsof -nP -iTCP:8787 -sTCP:LISTEN` then `kill <PID>`, or use `--port 8788` and match `VITE_API_URL`.
 - **Planner returns 0 tasks:** often target repo already matches spec; try `--reset` or an empty repo; see logs / `MAX_FILE_TREE_LINES`.
 - **Strict SDLC exit code 1:** failed tasks or phase errors; fix or set `STRICT_SDLC=false` for a looser run.
-
----
-
-## Compare / inspiration
-
-Inspired by [Longshot](https://github.com/Blastgits/longshot). OnePromptAI targets **smaller** projects and **local** worktrees, with **configurable** LLM and DB backends.
-
 ---
 
 ## License
