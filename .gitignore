@@ -62,3 +62,7 @@ Thumbs.db
 AUDIT-*.md
 AUDIT-*.json
 FINAL-*.md
+
+# Pre-commit and secret detection
+.secrets.baseline
+.pre-commit-config.yaml.swp
