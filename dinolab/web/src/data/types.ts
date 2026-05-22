@@ -30,4 +30,10 @@ export interface DinosaurSpecies {
    * "cast" = black stage + off-white bone materials in 3D (visual style only; no external specimen copy).
    */
   viewerStyle?: "default" | "cast";
+  /** Taxonomic family classification (e.g., "Tyrannosauridae") */
+  family?: string;
+  /** Geological time period (e.g., "Late Cretaceous") */
+  time_period?: string;
+  /** Geographic origin or discovery location */
+  geographic_origin?: string;
 }
