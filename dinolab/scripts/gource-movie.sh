@@ -8,7 +8,7 @@
 #
 # Parameters:
 #   FRAME_RATE   - Video frame rate in fps (default: 60)
-#   OUTPUT_FILE  - Output MP4 filename (default: dinolab-gource.mp4)
+#   OUTPUT_FILE  - Output MP4 filename (default: dinolab-history.mp4)
 #
 # Example:
 #   ./gource-movie.sh 30 my-timelapse.mp4
@@ -21,11 +21,13 @@ PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 # Configuration with defaults
 FRAME_RATE="${1:-60}"
-OUTPUT_FILE="${2:-dinolab-gource.mp4}"
+OUTPUT_FILE="${2:-dinolab-history.mp4}"
 
-# Gource timing settings for reasonable playback
-# 0.1 seconds per commit = 10 commits per second
-SECONDS_PER_COMMIT="0.1"
+# Safe timing settings to prevent broken playback
+# --speed 2: Commits play at 2x speed for better pacing
+# --max-file-lag 2: Maximum 2 seconds lag for file updates
+GOURCE_SPEED="2"
+GOURCE_MAX_FILE_LAG="2"
 
 # Color scheme and visual settings
 GOURCE_TITLE="DINOLAB - Git Commit Evolution"
@@ -48,11 +50,26 @@ log_success() {
     echo "[SUCCESS] $*" >&2
 }
 
+log_celebrate() {
+    echo "[🎉] $*" >&2
+}
+
 exit_with_error() {
     local message="$1"
     local exit_code="${2:-1}"
     log_error "$message"
     exit "$exit_code"
+}
+
+# Detect operating system
+detect_os() {
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        echo "macos"
+    elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
+        echo "linux"
+    else
+        echo "unknown"
+    fi
 }
 
 # ============================================================================
@@ -61,14 +78,38 @@ exit_with_error() {
 
 check_gource_installed() {
     if ! command -v gource &> /dev/null; then
-        exit_with_error "Gource is not installed. Please install it first.\n  Ubuntu/Debian: sudo apt-get install gource\n  macOS: brew install gource\n  Other: visit https://gource.io/" 1
+        local os
+        os="$(detect_os)"
+        local install_suggestion
+        
+        if [ "$os" = "macos" ]; then
+            install_suggestion="brew install gource"
+        elif [ "$os" = "linux" ]; then
+            install_suggestion="sudo apt-get install gource"
+        else
+            install_suggestion="visit https://gource.io/ for installation instructions"
+        fi
+        
+        exit_with_error "Gource is not installed. Please install it first.\n  $install_suggestion" 1
     fi
     log_info "Gource found: $(gource --version)"
 }
 
 check_ffmpeg_installed() {
     if ! command -v ffmpeg &> /dev/null; then
-        exit_with_error "FFmpeg is not installed. Please install it first.\n  Ubuntu/Debian: sudo apt-get install ffmpeg\n  macOS: brew install ffmpeg\n  Other: visit https://ffmpeg.org/" 1
+        local os
+        os="$(detect_os)"
+        local install_suggestion
+        
+        if [ "$os" = "macos" ]; then
+            install_suggestion="brew install ffmpeg"
+        elif [ "$os" = "linux" ]; then
+            install_suggestion="sudo apt-get install ffmpeg"
+        else
+            install_suggestion="visit https://ffmpeg.org/ for installation instructions"
+        fi
+        
+        exit_with_error "FFmpeg is not installed. Please install it first.\n  $install_suggestion" 1
     fi
     log_info "FFmpeg found: $(ffmpeg -version | head -1)"
 }
@@ -124,8 +165,8 @@ check_git_commits() {
 # ============================================================================
 
 main() {
-    log_info "=== DINOLAB Gource Movie Generator ==="
-    log_info "Starting visualization generation..."
+    log_celebrate "=== DINOLAB Gource Movie Generator ==="
+    log_celebrate "Generating your work celebration..."
     
     # Validate all prerequisites
     check_gource_installed
@@ -135,7 +176,7 @@ main() {
     validate_output_path
     check_git_commits
     
-    log_info "All prerequisites validated. Generating visualization..."
+    log_celebrate "All systems ready! Creating your visualization masterpiece..."
     log_info "This may take a few minutes depending on repository size..."
     
     # Create temporary directory for intermediate files
@@ -145,14 +186,14 @@ main() {
     
     log_info "Using temporary directory: ${temp_dir}"
     
-    # Generate the visualization using gource
+    # Generate the visualization using gource with safe timing parameters
     # Settings explanation:
     #   -1920x1080: Resolution
-    #   --seconds-per-commit: Controls playback speed (0.1 = 10 commits/sec)
+    #   --speed 2: Commits play at 2x speed for better pacing
+    #   --max-file-lag 2: Maximum 2 seconds lag for file updates (prevents broken playback)
     #   --title: Display title
     #   --highlight-dirs: Highlight directory changes
     #   --file-idle-time: How long files stay highlighted
-    #   --max-file-lag: Maximum lag for file updates
     #   --background: Background color
     #   --font-size: Text size
     #   --dir-colour: Directory color
@@ -162,11 +203,11 @@ main() {
     
     if ! gource \
         -${GOURCE_WIDTH}x${GOURCE_HEIGHT} \
-        --seconds-per-commit "${SECONDS_PER_COMMIT}" \
+        --speed ${GOURCE_SPEED} \
+        --max-file-lag ${GOURCE_MAX_FILE_LAG} \
         --title "${GOURCE_TITLE}" \
         --highlight-dirs \
         --file-idle-time 3 \
-        --max-file-lag 0.5 \
         --background 000000 \
         --font-size 18 \
         --dir-colour 00aa00 \
@@ -199,12 +240,14 @@ main() {
         exit_with_error "Output file is too small (${file_size} bytes). Generation may have failed." 1
     fi
     
+    log_celebrate "Your story is ready!"
     log_success "Visualization generated successfully!"
     log_info "Output file: ${OUTPUT_FILE}"
     log_info "File size: $(numfmt --to=iec-i --suffix=B "${file_size}" 2>/dev/null || echo "${file_size} bytes")"
     log_info "Frame rate: ${FRAME_RATE} fps"
     log_info "Resolution: ${GOURCE_WIDTH}x${GOURCE_HEIGHT}"
-    log_info "Timing: ${SECONDS_PER_COMMIT} seconds per commit"
+    log_info "Timing: Speed ${GOURCE_SPEED}x, Max file lag ${GOURCE_MAX_FILE_LAG}s"
+    log_celebrate "Enjoy your commit celebration! 🎬"
 }
 
 # ============================================================================
