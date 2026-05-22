@@ -28,24 +28,37 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Lint and typecheck
+      - name: Lint with ESLint
         run: npm run lint
+        continue-on-error: false
+
+      - name: Type check with TypeScript
+        run: npm run type-check
+        continue-on-error: false
 
       - name: Build with Vite
         run: npm run build
+        continue-on-error: false
 
       - name: Run unit tests
         run: npm run test
+        continue-on-error: false
 
       - name: Run smoke tests
         run: bash ../../dinolab/web/smoke-test.sh
+        continue-on-error: false
 
       - name: Report build success
         if: success()
-        run: echo "✓ CI pipeline passed: lint, build, unit tests, and smoke tests all successful."
+        run: |
+          echo "::notice title=CI Pipeline Status::✓ All checks passed"
+          echo "Build Status: SUCCESS"
+          echo "Completed steps: ESLint (lint), TypeScript (type-check), Vite (build), unit tests, smoke tests"
 
       - name: Report build failure
         if: failure()
         run: |
-          echo "✗ CI pipeline failed. Review logs above for details."
+          echo "::error title=CI Pipeline Status::✗ CI pipeline failed"
+          echo "Build Status: FAILURE"
+          echo "Review the logs above to identify which step failed."
           exit 1
