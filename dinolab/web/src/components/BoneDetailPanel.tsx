@@ -90,10 +90,45 @@ export function BoneDetailPanel({ species, bone, onOpenResearch }: Props) {
             </div>
           </div>
           <section className="bone-panel__body">
+            {bone.plain_language && (
+              <>
+                <h4>Overview</h4>
+                <p className="bone-panel__plain-language">{bone.plain_language}</p>
+              </>
+            )}
             <h4>What this bone does</h4>
             <p>{bone.description}</p>
             <h4>How scientists study it</h4>
             <p className="bone-panel__ost">{bone.osteology}</p>
+            {bone.research_note && (
+              <>
+                <h4>Research Notes</h4>
+                <p className="bone-panel__research-note">{bone.research_note}</p>
+              </>
+            )}
+            {(species.family || species.time_period || species.geographic_origin) && (
+              <div className="bone-panel__species-metadata">
+                <h4>Species Information</h4>
+                {species.family && (
+                  <div className="bone-panel__metadata-item">
+                    <span className="bone-panel__metadata-label">Family:</span>
+                    <span className="bone-panel__metadata-value">{species.family}</span>
+                  </div>
+                )}
+                {species.time_period && (
+                  <div className="bone-panel__metadata-item">
+                    <span className="bone-panel__metadata-label">Time Period:</span>
+                    <span className="bone-panel__metadata-value">{species.time_period}</span>
+                  </div>
+                )}
+                {species.geographic_origin && (
+                  <div className="bone-panel__metadata-item">
+                    <span className="bone-panel__metadata-label">Geographic Origin:</span>
+                    <span className="bone-panel__metadata-value">{species.geographic_origin}</span>
+                  </div>
+                )}
+              </div>
+            )}
             <button
               type="button"
               className="btn-bonus pixel-corners"
