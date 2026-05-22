@@ -1,0 +1,69 @@
+# Pre-commit hooks for secret detection and code quality
+# Install: pip install pre-commit
+# Setup: pre-commit install
+# Run manually: pre-commit run --all-files
+
+repos:
+  # Detect secrets: scan for API keys, tokens, credentials
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: 1.4.0
+    hooks:
+      - id: detect-secrets
+        name: Detect secrets
+        description: Scans for patterns matching GitHub tokens, AWS keys, and other sensitive values
+        entry: detect-secrets scan
+        language: python
+        types: [text]
+        # Exclude common non-secret files
+        exclude: |
+          (?x)^(
+            \.git/|
+            \.github/|
+            node_modules/|
+            \.(md|txt|json|yaml|yml|xml)$|
+            (README|LICENSE|CHANGELOG)|
+            \.(jpg|png|gif|zip|tar|tgz)$
+          )
+        args: [
+          '--baseline',
+          '.secrets.baseline',
+          '--all-files',
+          '--force-use-all-plugins'
+        ]
+
+  # Prevent large files from being committed
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: detect-private-key
+        name: Detect private key
+        description: Detects presence of private keys
+      - id: end-of-file-fixer
+        name: Fix end of file
+      - id: trailing-whitespace
+        name: Trim trailing whitespace
+      - id: check-added-large-files
+        name: Check for large files
+        args: ['--maxkb=1000']
+      - id: check-yaml
+        name: Check YAML
+      - id: check-json
+        name: Check JSON
+      - id: check-env-file
+        name: Check .env file
+        files: '^\.env.*$'
+      - id: check-case-conflict
+        name: Check for case conflicts
+      - id: check-merge-conflict
+        name: Check for merge conflicts
+
+  # Git secrets: additional pattern matching for common credential formats
+  - repo: https://github.com/pre-commit/mirrors-git-secrets
+    rev: v1.3.0
+    hooks:
+      - id: git-secrets
+        name: Git secrets
+        description: Prevents secrets from being committed (GitHub tokens, AWS keys, etc.)
+        entry: git secrets --scan
+        language: script
+        stages: [commit]
