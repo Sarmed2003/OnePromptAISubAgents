@@ -1,6 +1,6 @@
 # Gource Setup Guide
 
-This guide walks you through installing and running Gource to generate a visualization of your repository's development history as a movie.
+Welcome! 🎬 This guide walks you through installing and running Gource to generate a stunning visualization of your repository's development history as a movie. Let's celebrate the work you've done!
 
 ## Table of Contents
 
@@ -10,10 +10,11 @@ This guide walks you through installing and running Gource to generate a visuali
 4. [Parameter Customization](#parameter-customization)
 5. [Troubleshooting](#troubleshooting)
 6. [Output Expectations](#output-expectations)
+7. [Next Steps](#next-steps)
 
 ## Installation
 
-Gource is available for macOS, Linux, and Windows. Follow the instructions for your operating system.
+Gource is available for macOS, Linux, and Windows. Follow the instructions for your operating system below.
 
 ### macOS
 
@@ -25,71 +26,168 @@ If you have Homebrew installed, the easiest way to install Gource is:
 brew install gource
 ```
 
+Verify the installation:
+
+```bash
+gource --version
+```
+
 #### Manual Installation
 
-If you don't have Homebrew:
+If you don't have Homebrew or prefer a manual installation:
 
 1. Visit the [Gource releases page](https://github.com/acaudwell/Gource/releases)
-2. Download the macOS binary
-3. Extract and move it to your `/Applications` folder
-4. Add Gource to your PATH by adding this line to your `~/.bash_profile` or `~/.zshrc`:
+2. Download the latest macOS binary (look for `.tar.gz` or `.dmg` files)
+3. Extract the archive:
+   ```bash
+   tar -xzf gource-*.tar.gz
+   ```
+4. Move the Gource executable to a system directory:
+   ```bash
+   sudo mv gource /usr/local/bin/
+   ```
+5. Verify the installation:
+   ```bash
+   gource --version
+   ```
+
+If you prefer to use an `.app` bundle:
+
+1. Download the `.dmg` file from the releases page
+2. Open the `.dmg` file and drag Gource.app to your `/Applications` folder
+3. Add Gource to your PATH by adding this line to your `~/.bash_profile` or `~/.zshrc`:
    ```bash
    export PATH="/Applications/Gource.app/Contents/MacOS:$PATH"
    ```
-5. Run `source ~/.bash_profile` or `source ~/.zshrc` to apply changes
+4. Run `source ~/.bash_profile` or `source ~/.zshrc` to apply changes
+5. Verify the installation:
+   ```bash
+   gource --version
+   ```
 
 ### Linux
 
 #### Ubuntu/Debian
+
+The easiest way to install Gource on Ubuntu or Debian-based systems:
 
 ```bash
 sudo apt-get update
 sudo apt-get install gource
 ```
 
+Verify the installation:
+
+```bash
+gource --version
+```
+
 #### Fedora/RHEL
+
+For Fedora, RHEL, or CentOS systems:
 
 ```bash
 sudo dnf install gource
 ```
 
+Verify the installation:
+
+```bash
+gource --version
+```
+
 #### Arch Linux
+
+For Arch Linux and Arch-based distributions:
 
 ```bash
 sudo pacman -S gource
 ```
 
-#### From Source
-
-If your distribution doesn't have Gource in its repositories:
+Verify the installation:
 
 ```bash
-# Install dependencies
-sudo apt-get install build-essential libsdl2-dev libsdl2-image-dev libglew-dev libfreetype6-dev
-
-# Clone and build
-git clone https://github.com/acaudwell/Gource.git
-cd Gource
-mkdir build && cd build
-cmake ..
-make
-sudo make install
+gource --version
 ```
+
+#### From Source
+
+If your distribution doesn't have Gource in its repositories or you want the latest development version:
+
+1. Install build dependencies:
+
+   For Ubuntu/Debian:
+   ```bash
+   sudo apt-get install build-essential cmake libsdl2-dev libsdl2-image-dev libglew-dev libfreetype6-dev libpcre3-dev
+   ```
+
+   For Fedora/RHEL:
+   ```bash
+   sudo dnf install gcc gcc-c++ cmake SDL2-devel SDL2_image-devel glew-devel freetype-devel pcre-devel
+   ```
+
+   For Arch:
+   ```bash
+   sudo pacman -S base-devel cmake sdl2 sdl2_image glew freetype2 pcre
+   ```
+
+2. Clone and build Gource:
+   ```bash
+   git clone https://github.com/acaudwell/Gource.git
+   cd Gource
+   mkdir build && cd build
+   cmake ..
+   make
+   sudo make install
+   ```
+
+3. Verify the installation:
+   ```bash
+   gource --version
+   ```
 
 ### Windows
 
-#### Using Chocolatey (Recommended)
+#### Using WSL with apt-get (Recommended for Windows 10/11)
+
+If you have Windows Subsystem for Linux (WSL) installed:
+
+1. Open WSL terminal
+2. Update package lists:
+   ```bash
+   sudo apt-get update
+   ```
+3. Install Gource:
+   ```bash
+   sudo apt-get install gource
+   ```
+4. Verify the installation:
+   ```bash
+   gource --version
+   ```
+
+Note: For video output in WSL, you may need to install additional dependencies. See the [Prerequisites](#prerequisites) section for FFmpeg installation in WSL.
+
+#### Using Chocolatey (Recommended for Native Windows)
 
 If you have Chocolatey installed:
 
-```powershell
-choco install gource
-```
+1. Open PowerShell as Administrator
+2. Run:
+   ```powershell
+   choco install gource
+   ```
+3. Verify the installation:
+   ```powershell
+   gource --version
+   ```
 
-#### Manual Installation
+#### Manual Installation (Native Windows)
+
+If you prefer a manual installation:
 
 1. Visit the [Gource releases page](https://github.com/acaudwell/Gource/releases)
-2. Download the Windows installer (.exe)
+2. Download the Windows installer (`.exe` file)
 3. Run the installer and follow the on-screen instructions
 4. Add Gource to your PATH:
    - Right-click "This PC" or "My Computer" and select "Properties"
@@ -99,6 +197,10 @@ choco install gource
    - Variable name: `PATH`
    - Variable value: `C:\Program Files\Gource` (or your installation directory)
    - Click OK and restart your terminal
+5. Verify the installation by opening a new PowerShell or Command Prompt:
+   ```powershell
+   gource --version
+   ```
 
 ## Prerequisites
 
@@ -112,7 +214,12 @@ Gource reads your repository's git history. Verify git is installed:
 git --version
 ```
 
-If not installed, visit [git-scm.com](https://git-scm.com/) and follow their installation instructions.
+If not installed:
+
+- **macOS:** `brew install git`
+- **Ubuntu/Debian:** `sudo apt-get install git`
+- **Fedora/RHEL:** `sudo dnf install git`
+- **Windows:** Download from [git-scm.com](https://git-scm.com/)
 
 ### FFmpeg
 
@@ -129,6 +236,15 @@ ffmpeg -version
 brew install ffmpeg
 ```
 
+**macOS (Manual):**
+1. Visit [ffmpeg.org/download.html](https://ffmpeg.org/download.html)
+2. Download the macOS build
+3. Extract and move to `/usr/local/bin`:
+   ```bash
+   tar -xzf ffmpeg-*.tar.bz2
+   sudo mv ffmpeg /usr/local/bin/
+   ```
+
 **Ubuntu/Debian:**
 ```bash
 sudo apt-get install ffmpeg
@@ -139,6 +255,16 @@ sudo apt-get install ffmpeg
 sudo dnf install ffmpeg
 ```
 
+**Arch Linux:**
+```bash
+sudo pacman -S ffmpeg
+```
+
+**Windows (WSL with apt-get):**
+```bash
+sudo apt-get install ffmpeg
+```
+
 **Windows (Chocolatey):**
 ```powershell
 choco install ffmpeg
@@ -146,9 +272,16 @@ choco install ffmpeg
 
 **Windows (Manual):**
 1. Visit [ffmpeg.org/download.html](https://ffmpeg.org/download.html)
-2. Download the Windows build
+2. Download the Windows build (static version recommended)
 3. Extract to a folder (e.g., `C:\ffmpeg`)
-4. Add the folder to your PATH following the same steps as Gource installation above
+4. Add the folder to your PATH:
+   - Right-click "This PC" and select "Properties"
+   - Click "Advanced system settings"
+   - Click "Environment Variables"
+   - Under "System variables", click "New"
+   - Variable name: `PATH`
+   - Variable value: `C:\ffmpeg\bin` (or your extraction directory)
+   - Click OK and restart your terminal
 
 ### Verify Prerequisites
 
@@ -158,7 +291,7 @@ Run this command to check all prerequisites:
 gource --version && git --version && ffmpeg -version
 ```
 
-You should see version information for all three tools.
+You should see version information for all three tools. If any are missing, follow the installation steps above.
 
 ## Usage
 
@@ -172,7 +305,13 @@ The `gource-movie.sh` script automates the process of generating a Gource visual
 cd /path/to/your/repository
 ```
 
-#### Step 2: Run the Script
+#### Step 2: Ensure the Script is Executable
+
+```bash
+chmod +x /path/to/dinolab/scripts/gource-movie.sh
+```
+
+#### Step 3: Run the Script
 
 ```bash
 /path/to/dinolab/scripts/gource-movie.sh
@@ -184,7 +323,7 @@ Or, if the script is in your PATH:
 gource-movie.sh
 ```
 
-#### Step 3: Wait for Completion
+#### Step 4: Wait for Completion
 
 The script will:
 1. Generate a Gource visualization of your repository
@@ -197,15 +336,35 @@ Processing time depends on repository size and history (see [Output Expectations
 
 To make the script accessible from any directory:
 
-1. Add the script's directory to your PATH, or
-2. Create a symbolic link:
-   ```bash
-   ln -s /path/to/dinolab/scripts/gource-movie.sh /usr/local/bin/gource-movie
-   ```
+#### Option 1: Add to PATH
+
+Add the script's directory to your PATH in `~/.bash_profile`, `~/.bashrc`, or `~/.zshrc`:
+
+```bash
+export PATH="/path/to/dinolab/scripts:$PATH"
+```
+
+Then reload your shell:
+
+```bash
+source ~/.bash_profile  # or ~/.bashrc or ~/.zshrc
+```
+
+#### Option 2: Create a Symbolic Link
+
+```bash
+sudo ln -s /path/to/dinolab/scripts/gource-movie.sh /usr/local/bin/gource-movie
+```
+
+Then run from anywhere:
+
+```bash
+gource-movie
+```
 
 ## Parameter Customization
 
-The `gource-movie.sh` script accepts several parameters to customize the visualization. Edit the script or pass parameters as environment variables.
+The `gource-movie.sh` script accepts several parameters to customize the visualization. You can pass these as environment variables or edit the script directly.
 
 ### Common Parameters
 
@@ -268,6 +427,8 @@ For more control, edit the `gource-movie.sh` script directly. Common Gource opti
 - `--stop-date` — End visualization at a specific date
 - `--max-files` — Limit the number of files shown
 - `--max-user-speed` — Limit user movement speed
+- `--background-colour` — Change background color
+- `--title` — Add a title to the visualization
 
 Refer to `gource --help` for a complete list of options.
 
@@ -281,6 +442,7 @@ Refer to `gource --help` for a complete list of options.
 1. Verify Gource is installed: `which gource` or `gource --version`
 2. If not found, reinstall Gource following the [Installation](#installation) section
 3. If installed, add its directory to your PATH and restart your terminal
+4. On macOS, ensure you're using the correct shell (bash vs. zsh) and editing the right config file
 
 ### "ffmpeg: command not found"
 
@@ -290,6 +452,7 @@ Refer to `gource --help` for a complete list of options.
 1. Verify FFmpeg is installed: `which ffmpeg` or `ffmpeg -version`
 2. If not found, install FFmpeg following the [Prerequisites](#prerequisites) section
 3. Restart your terminal after installation
+4. On Windows, ensure you added the correct directory to your PATH
 
 ### "fatal: not a git repository"
 
@@ -298,7 +461,7 @@ Refer to `gource --help` for a complete list of options.
 **Solution:**
 1. Navigate to the root directory of your git repository: `cd /path/to/repo`
 2. Verify it's a git repo: `git status`
-3. Run the script again
+3. Run the script again from the repository root
 
 ### Script Hangs or Takes Too Long
 
@@ -314,6 +477,7 @@ Refer to `gource --help` for a complete list of options.
    ```
 3. Check available disk space: `df -h`
 4. Check available memory: `free -h` (Linux) or `vm_stat` (macOS)
+5. Close other applications to free up system resources
 
 ### Video Quality Issues
 
@@ -330,6 +494,7 @@ Refer to `gource --help` for a complete list of options.
    export GOURCE_FPS="60"
    gource-movie.sh
    ```
+3. Ensure FFmpeg is using a high-quality codec; check the script for encoder settings
 
 ### "Permission denied" Error
 
@@ -347,12 +512,16 @@ chmod +x /path/to/dinolab/scripts/gource-movie.sh
 
 **Solution:**
 1. Check for error messages in the terminal output
-2. Verify write permissions in the current directory: `touch test.txt` then `rm test.txt`
+2. Verify write permissions in the current directory:
+   ```bash
+   touch test.txt && rm test.txt
+   ```
 3. Try specifying an absolute path for the output file:
    ```bash
    export GOURCE_OUTPUT="/tmp/gource-output.mp4"
    gource-movie.sh
    ```
+4. Ensure the repository has at least one commit: `git log`
 
 ### macOS: "gource cannot be opened because the developer cannot be verified"
 
@@ -365,7 +534,25 @@ chmod +x /path/to/dinolab/scripts/gource-movie.sh
 4. Click "Allow Anyway" next to Gource
 5. Try running Gource again
 
-Alternatively, install via Homebrew to avoid this issue.
+Alternatively, install via Homebrew to avoid this issue entirely:
+```bash
+brew install gource
+```
+
+### Windows: Script Not Found in WSL
+
+**Problem:** The script path doesn't work in WSL.
+
+**Solution:**
+1. Use WSL-compatible paths (forward slashes, `/mnt/c/` for Windows drives):
+   ```bash
+   /mnt/c/path/to/dinolab/scripts/gource-movie.sh
+   ```
+2. Or navigate to the repository and use relative paths:
+   ```bash
+   cd /mnt/c/path/to/repo
+   /path/to/gource-movie.sh
+   ```
 
 ## Output Expectations
 
@@ -381,7 +568,7 @@ Expected file sizes vary by repository and settings:
 - **Medium repo** (100–1000 commits): 50–200 MB at 1080p
 - **Large repo** (> 1000 commits): 200–1000+ MB at 1080p
 
-Higher resolutions and frame rates increase file size.
+Higher resolutions and frame rates increase file size. Lower resolutions (720p) reduce file size by approximately 50%.
 
 ### Video Duration
 
@@ -432,8 +619,11 @@ mpv gource-movie.mp4
 # or
 ffplay gource-movie.mp4
 
-# Windows
+# Windows (native)
 start gource-movie.mp4
+
+# Windows (WSL)
+wslview gource-movie.mp4  # if wslview is installed
 ```
 
 ### Sharing
@@ -443,3 +633,87 @@ The generated MP4 file can be:
 - Embedded in presentations or documentation
 - Shared via email or file transfer services
 - Used in project portfolios or team presentations
+
+## Next Steps
+
+### 🎉 Ready to Celebrate Your Work?
+
+After the build completes, you've got a stunning visual record of your repository's development journey! Here's how to see the story of the work you've done:
+
+### Run the Movie Generation Script
+
+Navigate to your repository and run:
+
+```bash
+cd /path/to/your/repository
+/path/to/dinolab/scripts/gource-movie.sh
+```
+
+Or, if you've set up the script in your PATH:
+
+```bash
+gource-movie
+```
+
+Sit back, relax, and let Gource work its magic! ✨
+
+### Watch Your Movie
+
+Once the script finishes (grab a coffee ☕ while you wait), open your video:
+
+```bash
+# macOS
+open gource-movie.mp4
+
+# Linux
+mpv gource-movie.mp4
+
+# Windows
+start gource-movie.mp4
+```
+
+Watch as your repository comes to life! You'll see every commit, every file change, and every contributor's journey visualized in stunning motion.
+
+### Customize and Experiment
+
+Want to make it even more special? Try these variations:
+
+**High-quality 4K version for presentations:**
+```bash
+export GOURCE_RESOLUTION="3840x2160"
+export GOURCE_FPS="60"
+gource-movie.sh
+```
+
+**Shorter, snappier version for social media:**
+```bash
+export GOURCE_DURATION="60"
+export GOURCE_RESOLUTION="1280x720"
+gource-movie.sh
+```
+
+**Custom output filename:**
+```bash
+export GOURCE_OUTPUT="project-evolution.mp4"
+gource-movie.sh
+```
+
+### Share Your Story
+
+Your Gource movie is perfect for:
+- 📺 Sharing on YouTube or Vimeo
+- 📊 Impressing stakeholders in presentations
+- 🎓 Showcasing in portfolios or case studies
+- 👥 Celebrating team achievements
+- 📖 Documenting project milestones
+
+### Keep Exploring
+
+For more advanced options and customizations, check out:
+- `gource --help` for all available Gource parameters
+- The [Troubleshooting](#troubleshooting) section if you hit any snags
+- The [Parameter Customization](#parameter-customization) section for creative variations
+
+---
+
+**Congratulations!** 🚀 You've just created a visual celebration of your development journey. Every line of code, every bug fix, every feature—it's all there in motion. Enjoy your Gource movie!
