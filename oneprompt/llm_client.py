@@ -11,6 +11,7 @@ from typing import Any
 import aiohttp
 
 from .config import LLMConfig
+from .input_validation import InputValidator
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +19,9 @@ MAX_RETRIES = 5
 BASE_RETRY_DELAY = 10
 
 _JSON_SUFFIX = (
-    "\n\nRespond with valid JSON only. Do not wrap in markdown code fences."
+    "\
+\
+Respond with valid JSON only. Do not wrap in markdown code fences."
 )
 
 
@@ -59,6 +62,7 @@ class LLMClient:
         self._bedrock_client = None
         self._ollama_available: bool | None = None
         self._ollama_session: aiohttp.ClientSession | None = None
+        self._validator = InputValidator()
 
         if config.provider == "bedrock":
             self._bedrock_client = self._make_bedrock_client()
@@ -89,6 +93,10 @@ class LLMClient:
         user_prompt: str,
         response_format: str = "text",
     ) -> str:
+        # Validate and sanitize inputs
+        system_prompt = self._validator.sanitize(system_prompt, context="system_prompt")
+        user_prompt = self._validator.sanitize(user_prompt, context="user_prompt")
+        
         if self._llm_limit is not None:
             async with self._llm_limit:
                 return await self._generate_inner(
@@ -341,7 +349,9 @@ class LLMClient:
         raw = await self.generate(system_prompt, user_prompt, response_format="json")
         raw = raw.strip()
         if raw.startswith("```"):
-            raw = raw.split("\n", 1)[1] if "\n" in raw else raw[3:]
+            raw = raw.split("\
+", 1)[1] if "\
+" in raw else raw[3:]
             if raw.endswith("```"):
                 raw = raw[:-3]
             raw = raw.strip()
@@ -391,7 +401,9 @@ class LLMClient:
             if content_end == -1:
                 break
             content = raw[content_start:content_end]
-            content = content.replace("\\n", "\n").replace('\\"', '"').replace("\\\\", "\\").replace("\\t", "\t")
+            content = content.replace("\\
+", "\
+").replace('\\"', '"').replace("\\\\", "\\").replace("\	", "	")
             files[path] = content
             pos = content_end + 1
 
@@ -420,6 +432,10 @@ class LLMClient:
         file_tree: str,
         context: str = "",
     ) -> dict[str, Any]:
+        # Sanitize spec and context
+        spec = self._validator.sanitize(spec, context="spec")
+        context = self._validator.sanitize(context, context="context")
+        
         user_msg = f"""## Project Specification
 {spec}
 
@@ -440,9 +456,26 @@ Each task: {{"id": "task-NNN", "description": "...", "scope": ["file1.py"], "acc
         task: dict[str, Any],
         file_contents: dict[str, str],
     ) -> dict[str, Any]:
-        files_section = "\n".join(
-            f"\n### {path}\n```\n{content}\n```\n"
-            for path, content in file_contents.items()
+        # Sanitize task description
+        task_desc = str(task.get("description", ""))
+        task_desc = self._validator.sanitize(task_desc, context="task_description")
+        task = dict(task)
+        task["description"] = task_desc
+        
+        # Sanitize file contents
+        sanitized_contents: dict[str, str] = {}
+        for path, content in file_contents.items():
+            sanitized_contents[path] = self._validator.sanitize(content, context="file_content")
+        
+        files_section = "\
+".join(
+            f"\
+### {path}\
+```\
+{content}\
+```\
+"
+            for path, content in sanitized_contents.items()
         )
 
         scope_list = task.get("scope", []) or []
@@ -499,6 +532,11 @@ Generate the complete implementation. {files_instruction} Respond with a JSON ob
         test_output: str,
         recent_commits: str,
     ) -> list[dict[str, Any]]:
+        # Sanitize outputs
+        build_output = self._validator.sanitize(build_output, context="build_output")
+        test_output = self._validator.sanitize(test_output, context="test_output")
+        recent_commits = self._validator.sanitize(recent_commits, context="recent_commits")
+        
         user_msg = f"""## Build Output
 {build_output}
 
