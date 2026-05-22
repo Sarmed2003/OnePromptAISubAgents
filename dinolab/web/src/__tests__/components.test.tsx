@@ -76,9 +76,10 @@ const AnatomyViewer = ({ onBoneClick }: { onBoneClick?: (bone: { name: string; d
 
 const LayerToggle = ({ onToggle }: { onToggle?: (layer: string, enabled: boolean) => void }) => {
   const [layers, setLayers] = React.useState({
-    skeleton: true,
+    bones: true,
     muscles: false,
-    organs: false,
+    softBody: false,
+    xray: false,
   });
 
   const handleToggle = (layer: keyof typeof layers) => {
@@ -98,15 +99,43 @@ const LayerToggle = ({ onToggle }: { onToggle?: (layer: string, enabled: boolean
             checked={enabled}
             onChange={() => handleToggle(layer as keyof typeof layers)}
           />
-          {layer.charAt(0).toUpperCase() + layer.slice(1)}
+          {layer === 'xray' ? 'X-Ray' : layer.charAt(0).toUpperCase() + layer.slice(1)}
         </label>
       ))}
       <div data-testid="active-layers">
         {Object.entries(layers)
           .filter(([, enabled]) => enabled)
-          .map(([layer]) => layer)
+          .map(([layer]) => (layer === 'xray' ? 'X-Ray' : layer))
           .join(', ')}
       </div>
+    </div>
+  );
+};
+
+const ScientificResearchConsole = ({ backendAvailable }: { backendAvailable?: boolean }) => {
+  const [isBackendReady, setIsBackendReady] = React.useState(backendAvailable ?? false);
+
+  React.useEffect(() => {
+    setIsBackendReady(backendAvailable ?? false);
+  }, [backendAvailable]);
+
+  return (
+    <div data-testid="scientific-research-console">
+      <h2>Scientific Research Console</h2>
+      {!isBackendReady ? (
+        <div data-testid="coming-soon-message">
+          <p>Coming soon...</p>
+        </div>
+      ) : (
+        <div data-testid="research-ui">
+          <h3>Research Data</h3>
+          <ul>
+            <li data-testid="research-item-1">DNA Analysis</li>
+            <li data-testid="research-item-2">Fossil Dating</li>
+            <li data-testid="research-item-3">Evolutionary Traits</li>
+          </ul>
+        </div>
+      )}
     </div>
   );
 };
@@ -278,24 +307,38 @@ describe('LayerToggle Component', () => {
     expect(toggle).toBeInTheDocument();
   });
 
-  it('toggling a layer switches visual state', async () => {
+  it('switches between bones, muscles, soft body, and x-ray modes', async () => {
     const user = userEvent.setup();
     render(<LayerToggle />);
 
-    const skeletonCheckbox = screen.getByTestId('layer-skeleton') as HTMLInputElement;
+    const bonesCheckbox = screen.getByTestId('layer-bones') as HTMLInputElement;
     const musclesCheckbox = screen.getByTestId('layer-muscles') as HTMLInputElement;
+    const softBodyCheckbox = screen.getByTestId('layer-softBody') as HTMLInputElement;
+    const xrayCheckbox = screen.getByTestId('layer-xray') as HTMLInputElement;
 
-    // Initial state: skeleton is true, muscles is false
-    expect(skeletonCheckbox.checked).toBe(true);
+    // Initial state: bones is true, others are false
+    expect(bonesCheckbox.checked).toBe(true);
     expect(musclesCheckbox.checked).toBe(false);
+    expect(softBodyCheckbox.checked).toBe(false);
+    expect(xrayCheckbox.checked).toBe(false);
 
-    // Toggle skeleton off
-    await user.click(skeletonCheckbox);
-    expect(skeletonCheckbox.checked).toBe(false);
-
-    // Toggle muscles on
+    // Toggle to muscles mode
+    await user.click(bonesCheckbox);
     await user.click(musclesCheckbox);
+    expect(bonesCheckbox.checked).toBe(false);
     expect(musclesCheckbox.checked).toBe(true);
+
+    // Toggle to soft body mode
+    await user.click(musclesCheckbox);
+    await user.click(softBodyCheckbox);
+    expect(musclesCheckbox.checked).toBe(false);
+    expect(softBodyCheckbox.checked).toBe(true);
+
+    // Toggle to x-ray mode
+    await user.click(softBodyCheckbox);
+    await user.click(xrayCheckbox);
+    expect(softBodyCheckbox.checked).toBe(false);
+    expect(xrayCheckbox.checked).toBe(true);
   });
 
   it('layer toggle callback fires when layer is toggled', async () => {
@@ -314,10 +357,10 @@ describe('LayerToggle Component', () => {
     render(<LayerToggle />);
 
     let activeLayers = screen.getByTestId('active-layers');
-    expect(activeLayers).toHaveTextContent('skeleton');
+    expect(activeLayers).toHaveTextContent('bones');
 
-    // Toggle skeleton off and muscles on
-    await user.click(screen.getByTestId('layer-skeleton'));
+    // Toggle bones off and muscles on
+    await user.click(screen.getByTestId('layer-bones'));
     await user.click(screen.getByTestId('layer-muscles'));
 
     activeLayers = screen.getByTestId('active-layers');
@@ -328,18 +371,18 @@ describe('LayerToggle Component', () => {
     const user = userEvent.setup();
     render(<LayerToggle />);
 
-    const skeletonCheckbox = screen.getByTestId('layer-skeleton');
+    const bonesCheckbox = screen.getByTestId('layer-bones');
     const musclesCheckbox = screen.getByTestId('layer-muscles');
-    const organsCheckbox = screen.getByTestId('layer-organs');
+    const softBodyCheckbox = screen.getByTestId('layer-softBody');
 
     // Enable all layers
     await user.click(musclesCheckbox);
-    await user.click(organsCheckbox);
+    await user.click(softBodyCheckbox);
 
     const activeLayers = screen.getByTestId('active-layers');
-    expect(activeLayers).toHaveTextContent('skeleton');
+    expect(activeLayers).toHaveTextContent('bones');
     expect(activeLayers).toHaveTextContent('muscles');
-    expect(activeLayers).toHaveTextContent('organs');
+    expect(activeLayers).toHaveTextContent('softBody');
   });
 
   it('should have no console errors on render', () => {
@@ -347,6 +390,50 @@ describe('LayerToggle Component', () => {
     render(<LayerToggle />);
     expect(consoleSpy).not.toHaveBeenCalled();
     consoleSpy.mockRestore();
+  });
+});
+
+describe('ScientificResearchConsole Component', () => {
+  it('shows coming-soon message when backend is not available', () => {
+    render(<ScientificResearchConsole backendAvailable={false} />);
+
+    const comingSoonMessage = screen.getByTestId('coming-soon-message');
+    expect(comingSoonMessage).toBeInTheDocument();
+    expect(comingSoonMessage).toHaveTextContent('Coming soon...');
+  });
+
+  it('shows research UI when backend is available', () => {
+    render(<ScientificResearchConsole backendAvailable={true} />);
+
+    const researchUI = screen.getByTestId('research-ui');
+    expect(researchUI).toBeInTheDocument();
+    expect(researchUI).toHaveTextContent('Research Data');
+    expect(screen.getByTestId('research-item-1')).toHaveTextContent('DNA Analysis');
+    expect(screen.getByTestId('research-item-2')).toHaveTextContent('Fossil Dating');
+    expect(screen.getByTestId('research-item-3')).toHaveTextContent('Evolutionary Traits');
+  });
+
+  it('defaults to coming-soon message when backend availability is not specified', () => {
+    render(<ScientificResearchConsole />);
+
+    const comingSoonMessage = screen.getByTestId('coming-soon-message');
+    expect(comingSoonMessage).toBeInTheDocument();
+  });
+
+  it('renders without crash and displays console', () => {
+    const { container } = render(<ScientificResearchConsole backendAvailable={true} />);
+    expect(container).toBeTruthy();
+    const console = screen.getByTestId('scientific-research-console');
+    expect(console).toBeInTheDocument();
+  });
+});
+
+describe('AnatomyViewer Smoke Test', () => {
+  it('AnatomyViewer loads without crashing', () => {
+    const { container } = render(<AnatomyViewer />);
+    expect(container).toBeTruthy();
+    const viewer = screen.getByTestId('anatomy-viewer');
+    expect(viewer).toBeInTheDocument();
   });
 });
 
@@ -409,5 +496,20 @@ describe('Integration Tests', () => {
     // Anatomy viewer should still be interactive
     const femurButton = screen.getByTestId('bone-femur');
     expect(femurButton).toBeInTheDocument();
+  });
+
+  it('all components render together without errors', () => {
+    const consoleSpy = vi.spyOn(console, 'error');
+    render(
+      <>
+        <DinoPicker />
+        <LayerToggle />
+        <AnatomyViewer />
+        <BoneDetailPanel bone={null} />
+        <ScientificResearchConsole backendAvailable={true} />
+      </>
+    );
+    expect(consoleSpy).not.toHaveBeenCalled();
+    consoleSpy.mockRestore();
   });
 });
